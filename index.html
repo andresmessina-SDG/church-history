@@ -121,15 +121,23 @@ h1{font-family:var(--display); font-weight:400; font-size:clamp(2.5rem,5.4vw,4.4
 #land .lrn.major{font-size:14px; fill:#a8361d}
 #land .lrn.sc{font-family:var(--primer-sc); font-size:13px; letter-spacing:.05em; fill:#a8361d}
 @media (prefers-reduced-motion:reduce){ #land{transition-delay:0s} }
-.tslip{position:absolute; z-index:3; width:300px; background:#f8f3e8; border-top:2px solid var(--accent); box-shadow:0 1px 0 var(--rule),0 10px 30px -14px rgba(60,40,20,.45);
-  padding:12px 16px; opacity:0; transform:translateY(4px); transition:opacity .18s var(--ease-out), transform .18s var(--ease-out); font-variant-numeric:oldstyle-nums}
+/* a town's slip is a small schedula laid on the map: vellum with its grain, a ruled double frame like the key's, a rubricated initial,
+   an ivy-leaf divider, the witness set right as a gloss, and the way in marked with the same leaf */
+.tslip{position:absolute; z-index:3; width:304px; box-sizing:border-box; padding:16px 20px 14px; text-align:left;
+  background:radial-gradient(ellipse 120% 90% at 30% 20%, rgba(255,250,236,.55), rgba(255,250,236,0) 60%), radial-gradient(circle at 88% 92%, rgba(150,110,50,.10), rgba(150,110,50,0) 40%), #f2ead6 var(--grain);
+  border:1px solid #3a2f25; box-shadow:inset 0 0 0 4px #f2ead6, inset 0 0 0 4.6px rgba(58,47,37,.62), 2px 3px 0 rgba(58,47,37,.10), 0 8px 22px -12px rgba(60,40,20,.35);
+  opacity:0; transform:translateY(4px); transition:opacity .18s var(--ease-out), transform .18s var(--ease-out); font-variant-numeric:oldstyle-nums}
 .tslip.on{opacity:1; transform:none}
-.tslip h3{font-family:var(--primer); font-weight:400; font-size:1.35rem; margin:0; line-height:1.15}
-.tslip .meta{font-family:var(--primer-sc); color:var(--accent); font-size:.9rem; margin:2px 0 8px; letter-spacing:.03em}
-.tslip q{display:block; font-family:var(--primer); font-style:italic; font-size:1.02rem; line-height:1.4; quotes:"“" "”"}
-.tslip .who{font-family:var(--primer-sc); font-size:.86rem; color:var(--muted); margin:6px 0 0; letter-spacing:.02em}
-.tslip .go{font-family:var(--primer); color:var(--accent); font-size:.98rem; margin-top:8px; padding:0; border:0; background:none; cursor:pointer}
-.tslip .go:hover{text-decoration:underline; text-underline-offset:3px}
+.tslip h3{font-family:var(--primer); font-weight:400; font-size:1.42rem; margin:0; line-height:1.1; text-align:center; letter-spacing:.005em}
+.tslip h3 .ri{color:var(--accent); font-size:1.18em}
+.tslip .meta{font-family:var(--primer-sc); color:var(--accent); font-size:.88rem; margin:3px 0 0; letter-spacing:.05em; text-align:center}
+.tslip .orn{display:block; width:120px; height:12px; margin:7px auto 9px}
+.tslip q{display:block; font-family:var(--primer); font-style:italic; font-size:1.04rem; line-height:1.42; color:#2b2620; quotes:"“" "”"; text-indent:-.4em; hyphens:manual}
+.tslip .who{font-family:var(--primer-sc); font-size:.84rem; color:var(--muted); margin:7px 0 0; letter-spacing:.04em; text-align:right}
+.tslip .who::before{content:"— "; font-family:var(--primer)}
+.tslip .go{display:flex; align-items:center; gap:7px; margin:11px auto 0; font-family:var(--primer); font-style:italic; color:var(--accent); font-size:1rem; padding:0; border:0; background:none; cursor:pointer}
+.tslip .go svg{flex:none; transition:transform .2s var(--ease-out)}
+@media (hover:hover) and (pointer:fine){ .tslip .go:hover{text-decoration:underline; text-decoration-thickness:.5px; text-underline-offset:3px} .tslip .go:hover svg{transform:translateX(2px)} }
 .rkey{position:absolute; width:338px; box-sizing:border-box; height:152px; padding:13px 12px 0 10px; background:rgba(241,235,221,.96); border:.9px solid #3a2f25; outline:.45px solid rgba(58,47,37,.7); outline-offset:-5px; pointer-events:none; transition:opacity .25s var(--ease-out); transition-delay:.38s}
 .rkey-h{margin:0 0 6px; text-align:center; font-family:var(--primer-sc); font-size:15px; letter-spacing:.07em; color:var(--accent); line-height:1.2}
 .rkey ul{list-style:none; margin:0; padding:0 0 0 2px}
@@ -197,8 +205,8 @@ h1{font-family:var(--display); font-weight:400; font-size:clamp(2.5rem,5.4vw,4.4
 @media (max-width:400px){ #back .md{display:none} #back .sm{display:inline} }
 .flip{position:fixed; z-index:20; margin:0; pointer-events:none; font-family:var(--display); font-weight:400; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--ink); transform-origin:50% 50%; line-height:1.05}
 
-.tip{position:absolute; z-index:5; pointer-events:none; background:var(--paper); border:1px solid var(--rule); border-radius:6px; padding:6px 10px; font-size:.86rem; line-height:1.35; box-shadow:0 6px 18px rgba(0,0,0,.08); max-width:240px}
-.tip b{display:block; font-family:var(--label); color:var(--accent); letter-spacing:.03em; font-size:1rem}
+.tip{position:absolute; z-index:5; pointer-events:none; background:#f2ead6 var(--grain); border:1px solid #3a2f25; box-shadow:inset 0 0 0 3px #f2ead6, inset 0 0 0 3.5px rgba(58,47,37,.55), 2px 3px 0 rgba(58,47,37,.08); padding:8px 12px 9px; font-family:var(--primer,var(--display)); font-style:italic; font-size:.95rem; line-height:1.35; color:#2b2620; max-width:250px; font-variant-numeric:oldstyle-nums}
+.tip b{display:block; font-family:var(--primer-sc,var(--label)); font-style:normal; font-weight:400; color:var(--accent); letter-spacing:.05em; font-size:.95rem; margin-bottom:1px}
 
 .sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
 #era.rich-mode{display:block}
@@ -1294,8 +1302,12 @@ function paintTop(S){
   if(eraFade>.02){ ctx.globalAlpha=eraFade; drawAxis(S); ctx.globalAlpha=1; }
   // year needle
   if(mouse && mode==='home'){ const yr=Math.round(u2y(view.u0+mouse[0]/Wd*(view.u1-view.u0))); if(yr>=30&&yr<=2026){
-    ctx.strokeStyle=`rgba(${S.ink},.28)`; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(mouse[0],80); ctx.lineTo(mouse[0],view.bottom+14); ctx.stroke();
-    ctx.font=`16px "IM Fell English SC", Georgia, serif`; ctx.textAlign='center'; ctx.fillStyle=S.accent; ctx.fillText('AD '+yr, Math.max(24,Math.min(Wd-24,mouse[0])), view.bottom+6); } }
+    // with the land drawn, the needle runs down to the rule of centuries and the year stands just above it, clear of the title
+    const onRule=inner.classList.contains('land-on'), nb=onRule?Hd-22:view.bottom+14, ny=onRule?Hd-28:view.bottom+6;
+    ctx.strokeStyle=`rgba(${S.ink},.28)`; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(mouse[0],80); ctx.lineTo(mouse[0],nb); ctx.stroke();
+    ctx.font=`16px "IM Fell English SC", Georgia, serif`; ctx.textAlign='center'; const nx=Math.max(24,Math.min(Wd-24,mouse[0]));
+    if(onRule){ ctx.lineWidth=4; ctx.lineJoin='round'; ctx.strokeStyle=`rgba(${S.paper},.92)`; ctx.strokeText('AD '+yr,nx,ny); }
+    ctx.fillStyle=S.accent; ctx.fillText('AD '+yr, nx, ny); } }
 }
 // A slow machine is noticed while the river is still: if frames keep running long, it is given fewer streaks, then the still river is painted at half rate.
 // Moves (the descent, Upstream, Downstream) are always painted every frame.
@@ -2334,44 +2346,126 @@ const LINK='#3a2f25', LRED='#a8361d';
 function lel(t,a,p){ const e=document.createElementNS(LAND_SVG,t); for(const k in a) e.setAttribute(k,a[k]); if(p) p.appendChild(e); return e; }
 const LS={stroke:LINK,'stroke-width':1.25,fill:'url(#lwall)','stroke-linejoin':'round','stroke-linecap':'round'};
 const lg=(p,d,a)=>lel('path',Object.assign({},LS,{d},a||{}),p);
-const lred={fill:'url(#ltile)'}, lnone={fill:'none'}, lverd={fill:'url(#lcopper)'}, llap={fill:'none',stroke:'#2f4a8a'};
+const lred={fill:'url(#ltile)'}, lnone={fill:'none'}, lverd={fill:'url(#lcopper)'}, llap={fill:'none',stroke:'#2f4a8a'}, llea={fill:'url(#llead)'}, lsla={fill:'url(#lslate)'};
+// engraver's helpers: a fine line, hatching for the shaded side, dark openings, and coursed stone
+const ld=(p,d,w)=>lg(p,d,{fill:'none','stroke-width':w||.6});
+const lsh=(p,d)=>lg(p,d,{fill:'url(#lhat)',stroke:'none'});
+const ldk=(p,d)=>lg(p,d,{fill:LINK,stroke:'none'});
+const larch=(x,y,w,h)=>`M${x} ${y}v${-(h-w/2)}a${w/2} ${w/2} 0 0 1 ${w} 0v${h-w/2}z`;
+const lcourse=(p,x0,x1,y0,y1,step)=>{ let d=''; for(let y=y0-step,r=0;y>y1+.5;y-=step,r++){ d+=`M${x0} ${y}H${x1}`; for(let x=x0+(r%2?3:6);x<x1-1;x+=6) d+=`M${x} ${y}v${step}`; } ld(p,d,.4); };
+const lwaves=(p,x0,x1,y)=>{ let d=`M${x0} ${y}`; for(let x=x0;x<x1;x+=6) d+='q1.5 -1.6 3 0t3 0'; lg(p,d,llap); };
+// buildings are drawn in a finer outline than the land's other marks
+const lb=(p,d,a)=>lel('path',Object.assign({},LS,{'stroke-width':.9,d},a||{}),p);
 const LDRAW={
-  jer(p){lg(p,'M-22 0v-16h44v16z');lg(p,'M-24 0v-24h9v24zM15 0v-24h9v24z');lg(p,'M-24 -24v-3h2v2h2v-2h2v2h2v-2h1v3M15 -24v-3h2v2h2v-2h2v2h2v-2h1v3',lnone);
-    lg(p,'M-4 0v-8a4 4 0 0 1 8 0v8',{fill:LINK});lg(p,'M-12 -16v-6h24v6',lnone);lg(p,'M-8 -22l8-6 8 6z',lred)},
-  ant(p){lg(p,'M-22 0v-4h44v4z');for(let i=-18;i<=18;i+=6)lg(p,`M${i} -4v-14`,lnone);lg(p,'M-22 -18h44');lg(p,'M-24 -18l24-10 24 10z',lred)},
-  rome(p){lg(p,'M-24 0v-28h48v28z');for(let r=0;r<2;r++)for(let i=-18;i<=18;i+=9)lg(p,`M${i-3.2} ${-2-r*13}v-5a3.2 3.2 0 0 1 6.4 0v5`,{fill:'#d8cbb0'});lg(p,'M-24 -28h48',lnone);lg(p,'M-24 -15h48',lnone)},
-  car(p){lg(p,'M-18 -6v-14h36v14z');lg(p,'M-20 -6v-20h8v20zM12 -6v-20h8v20z');lg(p,'M-8 -20l8-7 8 7z',lred);
-    lg(p,'M-26 -3q4 -3 8 0t8 0t8 0t8 0t8 0t8 0t8 0',llap);lg(p,'M-22 2q4 -3 8 0t8 0t8 0t8 0t8 0',llap)},
-  mil(p){lg(p,'M-22 0v-14h30v14z');lg(p,'M-12 -14v-8h20v8');lg(p,'M-24 -14l10-4h24l10 4',lred);lg(p,'M-14 -22l8-4h12l4 4',lred);
-    lg(p,'M8 0v-12a10 10 0 0 1 12 0v12z');for(let i=-18;i<=4;i+=6)lg(p,`M${i} -3v-6`,lnone)},
-  con(p){lg(p,'M-26 0v-12h52v12z');lg(p,'M-20 -12a8 8 0 0 1 12 0M8 -12a8 8 0 0 1 12 0',lnone);lg(p,'M-14 -12v-4h28v4');
-    lg(p,'M-13 -16a13 13 0 0 1 26 0z',{fill:'url(#llead)'});for(let i=-9;i<=9;i+=4.5)lg(p,`M${i} -15.5v-2`,lnone);for(let i=-20;i<=20;i+=5)lg(p,`M${i} -3v-5`,lnone)},
-  sel(p){lg(p,'M-26 0v-30h52v30z');lg(p,'M-11 0v-14q0 -14 11 -14t11 14v14z',{fill:'#d8cbb0'});for(let i=-23;i<=-15;i+=4)lg(p,`M${i} -26v6M${-i} -26v6`,lnone);lg(p,'M-26 -30h52',{stroke:LRED,'stroke-width':2})},
-  kiev(p){lg(p,'M-18 0v-16h36v16z');lg(p,'M-4 0v-7h8v7',{fill:LINK});
-    [[-11,-16,5],[0,-22,7],[11,-16,5]].forEach(([x,y,r])=>{lg(p,`M${x-r*.2} ${y}v${-r*.4}`,lnone);lg(p,`M${x-r} ${y-r*.6}q0 ${-r} ${r} ${-r*1.8}q${r} ${r*.8} ${r} ${r*1.8}z`,lverd);lg(p,`M${x} ${y-r*2.4}v-3`,lnone)});lg(p,'M-6 -16v-6h12v6')},
-  clu(p){lg(p,'M-26 0v-14h52v14z');lg(p,'M-27 -14l5 -7h44l5 7z',lred);[[-17,26],[0,34],[15,22]].forEach(([x,h])=>{lg(p,`M${x-4} -14v${-h+14}h8v${h-14}`);lg(p,`M${x-5} ${-h}l5 -8 5 8z`,lred)})},
-  wit(p){lg(p,'M-24 0v-14h32v14z');lg(p,'M-26 -14l7 -10h27v10z',lred);lg(p,'M-19 -24l-7 10',lnone);lg(p,'M8 0v-28h12v28z');lg(p,'M7 -28a7 7 0 0 1 14 0z',lverd);lg(p,'M14 -35v-4',lnone);
-    for(let i=-20;i<=0;i+=6)lg(p,`M${i} -3v-6`,lnone);lg(p,'M11 -22h6M11 -14h6',lnone)},
-  gen(p){lg(p,'M-20 -6v-14h40v14z');lg(p,'M-20 -6v-26h10v26zM10 -6v-26h10v26z');lg(p,'M-21 -32h12M9 -32h12',{stroke:LRED,'stroke-width':2});
-    lg(p,'M-6 -20l6 -6 6 6z',lred);lg(p,'M-3 -6v-6a3 3 0 0 1 6 0v6',{fill:LINK});lg(p,'M-28 -1q4 -3 8 0t8 0t8 0t8 0t8 0t8 0t8 0',llap);lg(p,'M-24 4q4 -3 8 0t8 0t8 0t8 0t8 0t8 0',llap)},
-  wes(p){lg(p,'M-14 0v-20h28v20z');lg(p,'M-22 0v-34h8v34zM14 0v-34h8v34z');lg(p,'M-23 -34l1 -5 2 3 2 -3 2 3 1 -3 1 5zM13 -34l1 -5 2 3 2 -3 2 3 1 -3 1 5z',lred);
-    lg(p,'M-5 0v-10q5 -10 10 0v10',{fill:'#d8cbb0'});lg(p,'M-14 -20l14 -6 14 6',lred)},
-  bed(p){lg(p,'M-28 -8h56',lnone);lg(p,'M-28 -8v-4h56v4');for(const x of [-18,0,18])lg(p,`M${x-7} -8q7 -10 14 0`,{fill:'#d8cbb0'});
-    lg(p,'M-6 -12v-12h12v12');lg(p,'M-8 -24l8 -6 8 6z',lred);lg(p,'M-2 -15h4v-5h-4z',{fill:LINK});lg(p,'M-30 -2q4 -3 8 0t8 0t8 0t8 0t8 0t8 0t8 0t8 0',llap)},
-  ser(p){lg(p,'M-24 0v-3h40v3z');for(let i=-20;i<=12;i+=6.4)lg(p,`M${i} -3v-14`,lnone);lg(p,'M-24 -17h40v-3h-40z');lg(p,'M-24 -20l20 -8 20 8z',lred);
-    lg(p,'M24 0q-1 -12 1 -22',lnone);lg(p,'M25 -22q-8 -2 -11 4M25 -22q8 -2 11 4M25 -22q-5 -6 -10 -5M25 -22q5 -6 10 -5',{fill:'none',stroke:'#3f7a6a','stroke-width':1.6})},
-  pyo(p){lg(p,'M-16 0v-12h32v12z');lg(p,'M-24 -12q4 2 6 -1l6 -9h24l6 9q2 3 6 1',lred);lg(p,'M-12 -22l4 -5h16l4 5',lred);lg(p,'M-3 0v-7h6v7',{fill:LINK})},
+  // Jerusalem: Herod's temple standing over the walls of the temple mount, the tower of Antonia at the corner
+  jer(p){lb(p,'M-26 0v-15h52v15z');lcourse(p,-26,26,0,-15,3.75);lsh(p,'M14 -.6v-13.8h11.4v13.8z');
+    lb(p,'M-27 -15h54v-2h-54z',lnone);ld(p,'M-26 -17v-2h2v2h3v-2h2v2h3v-2h2v2h3v-2h2v2h3v-2h2v2h3v-2h2v2h3v-2h2v2h3v-2h2v2h3v-2h2v2h3v-2h2v2h2.5v-2');
+    lb(p,'M-27 -15v-17h9v17z');ld(p,'M-27 -32v-2.5h1.8v1.5h1.8v-1.5h1.8v1.5h1.8v-1.5h1.8v2.5');ldk(p,larch(-24,-21,3,6));
+    lb(p,'M-8 -17v-11h22v11z');lb(p,'M-4 -17v-21h14v21z');lsh(p,'M6 -17.6v-19.8h3.4v19.8z');ldk(p,'M0 -17v-12h6v12z');
+    ld(p,'M-4 -38v-1.6M-1 -38v-1.6M2 -38v-1.6M5 -38v-1.6M8 -38v-1.6M10 -38v-1.6');ld(p,'M-8 -28h22M-4 -31h14')},
+  // Antioch: a temple front on its steps, six columns before the dark cella
+  ant(p){lb(p,'M-25 0v-2.5h50v2.5z');lb(p,'M-23 -2.5v-2.5h46v2.5z');ldk(p,'M-19 -5v-16h38v16z');
+    for(let i=0;i<6;i++){const x=-18+i*7.2;lb(p,`M${x-1.6} -5v-15.5h3.2v15.5z`);ld(p,`M${x-.4} -6v-13.5M${x+.6} -6v-13.5`,.35);lb(p,`M${x-2.4} -20.5h4.8v-1.2h-4.8z`,lnone)}
+    lb(p,'M-23 -21.7v-4h46v4z');ld(p,'M-23 -23.7h46',.45);for(let x=-21;x<=21;x+=3)ld(p,`M${x} -21.7v-1`,.4);
+    lb(p,'M-24.5 -25.7l24.5 -10 24.5 10z');lb(p,'M-19 -27.3l19 -7.4 19 7.4z',{fill:'#e3d4b4','stroke-width':.6});lsh(p,'M2 -34l16 6.4h-16z');
+    lb(p,'M-25.5 -25.4l25.5 -10.4 25.5 10.4',{fill:'none',stroke:LRED,'stroke-width':1.3});ld(p,'M0 -35.8v-2.4M-24.4 -25.7v-1.8M24.4 -25.7v-1.8',.8)},
+  // Rome: the arches of the new Claudian aqueduct, a temple and the roofs of the city behind
+  rome(p){lb(p,'M-22 -21.5v-4h9v4z');lb(p,'M-23 -25.5l5.5 -4 5.5 4z',lred);
+    lb(p,'M-6 -21.5v-9.5h18v9.5z');for(let x=-4;x<=10;x+=3.4)ld(p,`M${x} -22v-8.5`,.5);lsh(p,'M8 -21.9v-8.7h3.4v8.7z');lb(p,'M-7 -31h20v-1.6h-20z');lb(p,'M-7.5 -32.6l10.5 -6 10.5 6z',lred);
+    lb(p,'M15 -21.5v-6h9v6z');lb(p,'M14 -27.5l5.5 -4 5.5 4z',lred);
+    lb(p,'M-27 0v-18h54v18z');lb(p,'M-28 -18h56v-3.5h-56z');ld(p,'M-28 -19.6h56',.4);
+    for(let i=0;i<5;i++){const x=-24+i*10.4;lb(p,larch(x,0,7.2,13),{fill:'#e6dabf'});ld(p,`M${x-.8} -9.4a4.4 4.4 0 0 1 8.8 0`,.45)}
+    lcourse(p,-27,27,-13.5,-18,2.25);lsh(p,'M21.6 -.6v-16.8h4.8v16.8z')},
+  // Carthage: Byrsa hill with its temple over the harbour, a gate in the sea wall
+  car(p){lb(p,'M-16 -4C-8 -5 -10 -18 -6 -22H14C18 -18 16 -5 26 -4z',{fill:'#e3d4b4'});lsh(p,'M12.4 -21.6C15.6 -17 14 -5.6 24 -4.4H15C13 -9 14 -17 11.4 -21.6z');ld(p,'M-10 -9l2 -1M-8 -15l1.6 -1M17 -14l1.4 1M19.4 -8l1.8 1',.45);
+    lb(p,'M-6 -22v-2h20v2z');for(let x=-4;x<=12;x+=4)lb(p,`M${x-.9} -24v-8h1.8v8z`);lb(p,'M-7 -32h22v-2.5h-22z');lb(p,'M-8 -34.5l12 -5 12 5z',lred);
+    lb(p,'M-26 -4v-12h12v12z');ldk(p,larch(-23,-4,6,9));ld(p,'M-26 -16v-1.6h2v1.2h2v-1.2h2v1.2h2v-1.2h2v1.2h2v-1.6',.6);lcourse(p,-26,-14,-4,-16,3);
+    lb(p,'M-14 -4h42',lnone);lwaves(p,-28,26,1);lwaves(p,-24,22,5)},
+  // Seleucia-Ctesiphon: the Taq Kasra, its vast vault between walls of blind arcades
+  sel(p){lb(p,'M-28 0v-29h18v29zM10 0v-29h18v29z');
+    for(const [y,h] of [[-2,6],[-10,5],[-17,4.5],[-23,4]]){let d='';for(let x=-27;x<-11;x+=3.4)d+=larch(x,y,2.2,h);ld(p,d,.45);d='';for(let x=11;x<27;x+=3.4)d+=larch(x,y,2.2,h);ld(p,d,.45);ld(p,`M-28 ${y-h-.8}h18M10 ${y-h-.8}h18`,.4)}
+    lsh(p,'M23 -.6v-27.8h4.4v27.8z');
+    lb(p,'M-12 0v-12q0 -29 12 -29t12 29v12z');ldk(p,'M-8.4 0v-11q0 -24 8.4 -24t8.4 24v11z');lb(p,'M-8.4 0v-11q0 -24 8.4 -24',{fill:'none',stroke:'#e3d4b4','stroke-width':.8});ld(p,'M-10.2 0v-11.5q0 -26.6 10.2 -26.6t10.2 26.6v11.5',.45)},
+  // Milan: Ambrose's basilica, gabled front with its arcaded loggia, a bell tower beside
+  mil(p){lb(p,'M-26 0v-10h7v10zM2 0v-10h7v10z');lb(p,'M-27 -10l4 -4h4v4zM2 -10v-4h4l4 4z',lred);
+    lb(p,'M-19 0v-20l10.5 -8 10.5 8v20z');lb(p,'M-20.5 -19.6l12 -9.2 12 9.2',{fill:'none',stroke:LRED,'stroke-width':1.4});
+    ldk(p,larch(-16,-11,3.4,7)+larch(-10.2,-11,3.4,8)+larch(-4.4,-11,3.4,7));ld(p,'M-17 -19.5h17',.45);
+    for(let x=-17;x<1;x+=4)ld(p,`M${x} -.5v-8`,.55);ld(p,'M-19 -9.5h21',.6);
+    lb(p,'M16 0v-34h8v34z');lcourse(p,16,24,0,-14,3.5);ldk(p,larch(17.6,-23,1.8,5)+larch(20.6,-23,1.8,5)+larch(17.6,-29,1.8,4)+larch(20.6,-29,1.8,4));lsh(p,'M21.6 -.6v-33h1.8v33z');
+    lb(p,'M15 -34l5 -7 5 7z',lred)},
+  // Constantinople: St Sophia, the dome on its ring of windows, the half-domes and great buttresses
+  con(p){lb(p,'M-28 0v-13h56v13z');ldk(p,larch(-23,-2,2.6,6)+larch(-17,-2,2.6,6)+larch(14.4,-2,2.6,6)+larch(20.4,-2,2.6,6));ldk(p,larch(-6,0,3,7)+larch(-1.5,0,3,8)+larch(3,0,3,7));
+    lsh(p,'M20 -.6v-11.8h6.4v11.8z');
+    lb(p,'M-28 -13v-15h5v15zM23 -13v-15h5v15z');lb(p,'M-28.6 -28h6.2l-1.2 -2h-3.8zM22.4 -28h6.2l-1.2 -2h-3.8z',llea);
+    lb(p,'M-23 -13v-5h46v5z');lb(p,'M-22 -18q1 -9 10 -9v9zM22 -18q-1 -9 -10 -9v9z',llea);
+    lb(p,'M-12 -18v-8h24v8z');ldk(p,larch(-9,-19.5,2.4,5)+larch(-3.8,-19.5,2.4,5.5)+larch(1.4,-19.5,2.4,5.5)+larch(6.6,-19.5,2.4,5));
+    lb(p,'M-13 -26v-3h26v3z');ldk(p,'M-11 -26.6h1.4v-1.8h-1.4zM-7.6 -26.6h1.4v-1.8h-1.4zM-4.2 -26.6h1.4v-1.8h-1.4zM-.8 -26.6h1.4v-1.8h-1.4zM2.6 -26.6h1.4v-1.8h-1.4zM6 -26.6h1.4v-1.8h-1.4zM9.4 -26.6h1.4v-1.8h-1.4z');
+    lb(p,'M-13.5 -29q1 -10 13.5 -10t13.5 10z',llea);ld(p,'M-6 -30q.5 -5.5 6 -7M6 -30q-.5 -5.5 -6 -7M0 -29.6v-9',.4);ld(p,'M0 -39v-2.5',.9)},
+  // Cluny: the great abbey church, its long roof, the octagonal towers and the west front
+  clu(p){lb(p,'M-27 0v-9h45v9z');lb(p,'M-28 -9l3 -3h43v3z',lred);for(let x=-16;x<=14;x+=5)ldk(p,larch(x,-2,1.8,4.5));
+    lb(p,'M-22 -12v-9h40v9z');for(let x=-18;x<=14;x+=4)ldk(p,larch(x,-14,1.6,4));lb(p,'M-23 -21l3 -5h36l3 5z',lred);ld(p,'M-19 -23.5h33',.4);
+    lb(p,'M18 0v-11h7v11z');ldk(p,larch(20.6,-2,1.8,4.5));lb(p,'M17.4 -11q.4 -6.4 4.1 -7.6q3.7 1.2 4.1 7.6z',lred);
+    lb(p,'M-28 0v-25h4v25zM-23 0v-25h4v25z');lb(p,'M-28.6 -25l2.6 -6 2.6 6zM-23.6 -25l2.6 -6 2.6 6z',lred);ldk(p,larch(-27,-17,2,4)+larch(-22,-17,2,4));
+    lb(p,'M4 -26v-10h8v10z');ldk(p,larch(5.3,-28,1.6,5)+larch(8.9,-28,1.6,5));ld(p,'M8 -26v-10',.4);lb(p,'M3.4 -36l4.6 -9 4.6 9z',lred);ld(p,'M8 -45v-2',.8);
+    lb(p,'M-8 -26v-6h6v6z');lb(p,'M-8.6 -32l3.6 -6 3.6 6z',lred);lsh(p,'M10 -26.6v-8.8h1.4v8.8z')},
+  // Kiev: St Sophia of Kiev, white walls under rounded gables, its domes in tiers on their drums
+  kiev(p){lb(p,'M-26 0v-13h52v13z');ldk(p,larch(-22,-3,2.6,6)+larch(-14,-3,2.6,6)+larch(11.4,-3,2.6,6)+larch(19.4,-3,2.6,6));ldk(p,larch(-2.2,0,4.4,8));
+    lb(p,'M-26 -13a4.33 4.33 0 0 1 8.66 0a4.33 4.33 0 0 1 8.66 0a4.33 4.33 0 0 1 8.67 0a4.33 4.33 0 0 1 8.67 0a4.33 4.33 0 0 1 8.67 0a4.33 4.33 0 0 1 8.67 0z',lsla);
+    lsh(p,'M21 -.6v-12h4.4v12z');
+    const dome=(x,y,r,h)=>{lb(p,`M${x-r} ${y}v${-h}h${2*r}v${h}z`);ldk(p,larch(x-.7,y-1,1.4,h-2.4));lb(p,`M${x-r-.6} ${y-h}q0 ${-r*1.5} ${r+.6} ${-r*2}q${r+.6} ${r*.5} ${r+.6} ${r*2}z`,lverd);ld(p,`M${x} ${y-h-r*2}v-3.2M${x-1.3} ${y-h-r*2-2}h2.6`,.7)};
+    dome(-18,-14.5,2.6,4);dome(18,-14.5,2.6,4);dome(-9,-16,3.2,6);dome(9,-16,3.2,6);dome(0,-17,4.4,9)},
+  // Wittenberg: the castle church, its tall Gothic windows and buttresses, the round tower with its cap, the door
+  wit(p){lb(p,'M-26 0v-17h32v17z');lb(p,'M-27 -17l7 -12h22l5 12z',lred);ld(p,'M-23 -21.5h22M-21 -25h20',.4);
+        for(const x of [-23,-14,-5])ldk(p,`M${x} -4v-8.5l1.5 -2.5 1.5 2.5v8.5z`);for(const x of [-17.8,-8.8,.2])lb(p,`M${x} 0v-14l1.6 2v12z`,{'stroke-width':.8});
+    ldk(p,'M2.2 0v-5.5a1.8 1.8 0 0 1 3.6 0v5.5z');
+    lb(p,'M8 0v-31h12v31z');ld(p,'M8 -10h12M8 -21h12',.5);ldk(p,larch(12.8,-12,2.4,5)+larch(12.8,-23,2.4,5)+larch(12.8,-27.5,2.4,3));lsh(p,'M16 -.6v-29.8h3.4v29.8z');
+    lb(p,'M7 -31q0 -7 7 -9q7 2 7 9z',lverd);lb(p,'M12.4 -40v-3h3.2v3z');lb(p,'M12 -43q2 -4 2 -6q0 2 2 6z',lverd)},
+  // Geneva: St Peter's on its hill above the town, the two towers and the slender spire, the lake below
+  gen(p){lb(p,'M-15 -10v-14h30v14z');lb(p,'M-16 -24l3 -4h26l3 4z',lred);for(let x=-11;x<=9;x+=5)ldk(p,`M${x} -13v-6.5l1.1 -1.5 1.1 1.5v6.5z`);
+    lb(p,'M-24 -8v-30h9v30zM15 -8v-30h9v30z');ldk(p,larch(-21.6,-29,1.7,5)+larch(-18.6,-29,1.7,5)+larch(17.4,-29,1.7,5)+larch(20.4,-29,1.7,5));
+    lb(p,'M-25 -38l5.5 -3.5 5.5 3.5zM14 -38l5.5 -3.5 5.5 3.5z',llea);lcourse(p,-24,-15,-8,-22,3.5);lsh(p,'M20.6 -8.6v-28.8h2.8v28.8z');
+    lb(p,'M-1.2 -28l1.2 -14 1.2 14z',lverd);
+    lb(p,'M-27 -1v-7l3 -3 3 3v7zM-21 -1v-6h6v6zM15 -1v-6h6v6zM21 -1v-7l3 -3 3 3v7z');lb(p,'M-21.6 -7l3.6 -3 3.6 3M14.4 -7l3.6 -3 3.6 3',lred);lb(p,'M-15 -1v-9h30v9z',{'stroke-width':.8});
+    for(let x=-13;x<=11;x+=4)ldk(p,`M${x} -4h1.6v-2.4h-1.6z`);
+    lwaves(p,-28,26,2);lwaves(p,-23,21,6)},
+  // Westminster: the abbey's Gothic nave and flying buttresses, the west towers still unfinished, the low lantern
+  wes(p){lb(p,'M-22 0v-11h44v11z');lb(p,'M-19 -11v-15h38v15z');lb(p,'M-20 -26l2.5 -5h35l2.5 5z',llea);
+    for(const c of [-17,-11,-5,1,7,13])ldk(p,`M${c-1.2} -14v-7.5l1.2 -2 1.2 2v7.5z`);for(const c of [-17,-11,-5,1,7,13,19])ldk(p,`M${c-1} -2.5v-5l1 -1.6 1 1.6v5z`);
+    for(const x of [-14,-8,-2,4,10,16]){lb(p,`M${x-.8} -11v-7h1.6v7z`,{'stroke-width':.6});lb(p,`M${x-1} -18l1 -3.4 1 3.4z`,{'stroke-width':.55})}
+    lsh(p,'M15.4 -11.6v-13.8h3v13.8z');lb(p,'M-4 -31v-4h10v4z');lb(p,'M-4.6 -35l5.6 -2.5 5.6 2.5z',llea);
+    lb(p,'M-28 0v-30h8v30z');ld(p,'M-28 -30v-2.6M-24 -30v-2.6M-20 -30v-2.6',.9);ldk(p,'M-25.6 -4v-9l1.6 -2.6 1.6 2.6v9z');ld(p,'M-28 -20h8',.4);
+    lb(p,'M22 0v-12h6v12z');ldk(p,'M24 -3v-5.6l1 -1.6 1 1.6v5.6z');lb(p,'M21.4 -12l3.6 -4 3.6 4z',llea)},
+  // Bedford: the stone bridge over the Ouse, with the little lock-up on its pier
+  bed(p){lb(p,'M-29 -9v-5h58v5z');ld(p,'M-29 -12h58',.4);
+    for(const x of [-21,-7,7,21]){lb(p,`M${x-6} -9v4q6 -8 12 0v-4z`,{'stroke-width':.9});ld(p,`M${x-6.5} -5q6.5 -9 13 0`,.45);for(let a=0;a<5;a++){const t=(a+.5)/5*Math.PI;ld(p,`M${x-6*Math.cos(t)} ${-5-4.6*Math.sin(t)}l${-1.6*Math.cos(t)} ${-1.6*Math.sin(t)}`,.4)}}
+    for(const x of [-14,0,14])lb(p,`M${x-1.6} -5l1.6 -2.5 1.6 2.5v4h-3.2z`);
+    lb(p,'M-6 -14v-11h12v11z');lb(p,'M-7.5 -25l7.5 -6 7.5 6z',lred);ldk(p,'M-2.2 -16.5v-5h4.4v5z');ld(p,'M-.8 -16.5v-5M.8 -16.5v-5',.5);lsh(p,'M2.5 -14.6v-9.8h2.9v9.8z');
+    lwaves(p,-30,28,-1);lwaves(p,-25,23,3)},
+  // Serampore: the college on the Hooghly, its tall portico and pediment, a palm by the river
+  ser(p){lb(p,'M-27 0v-2h46v2z');lb(p,'M-26 -2v-15h44v15z');lsh(p,'M14 -2.6v-13.8h3.4v13.8z');
+    for(const x of [-23.9,-19.9,10.1,14.1])ldk(p,`M${x} -4h1.8v-4.5h-1.8zM${x} -11h1.8v-4h-1.8z`);
+    ldk(p,'M-15 -2v-20h22v20z');for(let i=0;i<6;i++){const x=-15+i*4.08;lb(p,`M${x} -2v-20h1.6v20z`,{'stroke-width':.7})}
+    lb(p,'M-16 -22h24v-2.5h-24z');lb(p,'M-17 -24.5l13 -6.5 13 6.5z');ld(p,'M-13 -25.2l9 -4.4 9 4.4',.45);lb(p,'M-26 -17h10v-2h-10zM8 -17h10v-2h-10z');
+    lb(p,'M25 0q-2 -13 1 -26',{fill:'none','stroke-width':1.3});ld(p,'M25 -6h1.4M24.8 -12h1.4M25 -18h1.4',.5);
+    const fr=(dx,dy)=>lb(p,`M26 -26q${dx*.5} ${dy-4} ${dx} ${dy}q${-dx*.3} ${-dy*.6+2} ${-dx} ${-dy}z`,{fill:'#3f7a6a','stroke-width':.6});
+    fr(-9,4);fr(9,4);fr(-7,-3);fr(7,-3);fr(-2,-7)},
+  // Pyongyang: a Korean church in the house style, grey tiled roof with lifted eaves on its stone base
+  pyo(p){lb(p,'M-25 0v-3.5h50v3.5z');ld(p,'M-20 -1.8h3M-8 -1.8h4M6 -1.8h3M16 -1.8h4',.4);
+    lb(p,'M-20 -3.5v-12h40v12z');for(const x of [-20,-10,0,10,20])lb(p,`M${x-1} -3.5v-12h2v12z`,{fill:'#7a4a2a','stroke-width':.6});
+    for(const x of [-17.5,-7.5,2.5,12.5]){lb(p,`M${x} -6v-7h5v7z`,{fill:'#efe3c8','stroke-width':.5});ld(p,`M${x+2.5} -6v-7M${x} -9.5h5`,.35)}
+    lsh(p,'M14 -4v-11h4.6v11z');
+    lb(p,'M-18 -15.5v-5h36v5z',{fill:'#4a3626','stroke-width':.6});ld(p,'M-14 -15.5v-5M-6 -15.5v-5M2 -15.5v-5M10 -15.5v-5',.35);lb(p,'M-29 -17q3 1.5 6 0q4 -1.5 6 -3.5h34q2 2 6 3.5q3 1.5 6 0q-6 -1 -9 -6l-4 -6h-32l-4 6q-3 5 -9 6z',lsla);
+    ld(p,'M-21 -19q4 -1.5 6 -4M21 -19q-4 -1.5 -6 -4M-10 -21v-7M-5 -21v-7M0 -21v-7M5 -21v-7M10 -21v-7',.4);
+    lb(p,'M-16 -29q-1.5 -1.6 -1 -3.4q1 1.2 3 1.2h28q2 0 3 -1.2q.5 1.8 -1 3.4z',lsla)},
 };
-const LPALM=(p,x,y)=>{const q=lel('g',{transform:`translate(${x} ${y})`},p);lel('path',{d:'M0 0q2 -10 7 -16',fill:'none',stroke:LRED,'stroke-width':1.4},q);
-  for(let i=1;i<=5;i++){const t=i/6,px=t*7,py=-t*16+2;lel('path',{d:`M${px} ${py}l-5 -2M${px} ${py}l4 -4`,stroke:LRED,'stroke-width':1.1,fill:'none'},q)}};
 const LSTREAM={u:'The undivided church',coe:'Church of the East',e:'Greek East',w:'Latin West',lu:'Lutheran',re:'Reformed and Presbyterian',pb:'Particular Baptist'};
-/* name, year, stream, drawing, sketch x, y, era index, chapter, quotation, witness, martyrs' palm */
+/* name, year, stream, drawing, sketch x, y, era index, chapter, quotation, witness */
 const TOWNS=[
  ['Jerusalem','30','u','jer',58,298,0,1,'Then they that gladly received his word were baptized: and the same day there were added unto them about three thousand souls.','Acts 2:41'],
  ['Antioch','c. 42','u','ant',66,488,0,5,'And the disciples were called Christians first in Antioch.','Acts 11:26'],
  ['Rome','c. 60','u','rome',150,334,0,9,'And when we came to Rome, the centurion delivered the prisoners to the captain of the guard: but Paul was suffered to dwell by himself with a soldier that kept him.','Acts 28:16'],
- ['Carthage','258','u','car',276,494,1,10,'… he calmly answered: ‘Deo gratias!’','Philip Schaff on Cyprian, History II, §22',1],
- ['Seleucia-Ctesiphon','344','coe','sel',338,150,2,12,'Symeon, on his apprehension, was bound with chains, and brought before the king.','Sozomen, Church History 2.9',1],
+ ['Carthage','258','u','car',276,494,1,10,'… he calmly answered: ‘Deo gratias!’','Philip Schaff on Cyprian, History II, §22'],
+ ['Seleucia-Ctesiphon','344','coe','sel',338,150,2,12,'Symeon, on his apprehension, was bound with chains, and brought before the king.','Sozomen, Church History 2.9'],
  ['Milan','386','u','mil',372,488,2,10,'I heard the voice as of a boy or girl, I know not which, coming from a neighbouring house, chanting, and oft repeating, ‘Take up and read; take up and read.’','Augustine, Confessions 8.12'],
  ['Constantinople','537','u','con',420,240,2,13,'The noblest and most complete building of this kind is the renowned church of St. Sophia at Constantinople …','Philip Schaff, History III, §107'],
  ['Cluny','910','w','clu',560,566,3,11,'… a reformation proceeded from the convent of Cluny in Burgundy, and affected the whole church.','Philip Schaff, History IV, §84'],
@@ -2391,7 +2485,7 @@ const LROADS=[
  {pts:[[1102,786],[1116,850],[1150,856],[1186,810]],towns:['Bedford','Serampore']},
  {pts:[[1186,810],[1220,862],[1280,856],[1312,800]],towns:['Serampore','Pyongyang']},
 ];
-const LKEY=[['gold','Where the gospel was confessed and recovered'],['dia','A creed or confession'],['dot','An event'],['pale','A lesser stream'],['road','A road of the gospel'],['palm','A place of martyrdom']];
+const LKEY=[['gold','Where the gospel was confessed and recovered'],['dia','A creed or confession'],['dot','An event'],['pale','A lesser stream'],['road','A road of the gospel']];
 var landReady; let landKey='', landOn=false, landPinned=-1, landTowns=[];
 const landWide=()=>Wd>=860&&Hd>=560;
 function landMap(){ const v=resolve({kind:'home'}), k=(v.bottom-v.top)/647; return {P:(x,y)=>[x*Wd/1440, v.top+(y-118)*k], s:Math.max(.8,Math.min(1.12,Math.min(Wd/1440,k)))}; }
@@ -2420,7 +2514,13 @@ function layoutLand(noKey){
   defs.innerHTML='<linearGradient id="lwall" x1="0" x2="1"><stop offset="0" stop-color="#f7efdc"/><stop offset=".55" stop-color="#efe3c8"/><stop offset="1" stop-color="#d6c39d"/></linearGradient>'+
     '<linearGradient id="ltile" x1="0" x2="1"><stop offset="0" stop-color="#c24a2a"/><stop offset="1" stop-color="#8f2c16"/></linearGradient>'+
     '<linearGradient id="lcopper" x1="0" x2="1"><stop offset="0" stop-color="#7fb2a0"/><stop offset="1" stop-color="#3f7a6a"/></linearGradient>'+
-    '<linearGradient id="llead" x1="0" x2="1"><stop offset="0" stop-color="#b9bfc4"/><stop offset="1" stop-color="#7d858c"/></linearGradient>';
+    '<linearGradient id="llead" x1="0" x2="1"><stop offset="0" stop-color="#b9bfc4"/><stop offset="1" stop-color="#7d858c"/></linearGradient>'+
+    '<radialGradient id="lwashG"><stop offset="0" stop-color="#b7c49a" stop-opacity=".30"/><stop offset="1" stop-color="#b7c49a" stop-opacity="0"/></radialGradient>'+
+    '<radialGradient id="lwashO"><stop offset="0" stop-color="#d9bd84" stop-opacity=".30"/><stop offset="1" stop-color="#d9bd84" stop-opacity="0"/></radialGradient>'+
+    '<linearGradient id="lhillG" x1="0" x2="1"><stop offset="0" stop-color="#dfe2c6"/><stop offset=".55" stop-color="#c3cba6"/><stop offset="1" stop-color="#9eab84"/></linearGradient>'+
+    '<linearGradient id="lhillO" x1="0" x2="1"><stop offset="0" stop-color="#f0e2bd"/><stop offset=".55" stop-color="#dcc493"/><stop offset="1" stop-color="#c2a26c"/></linearGradient>'+
+    '<linearGradient id="lslate" x1="0" x2="1"><stop offset="0" stop-color="#8b8780"/><stop offset="1" stop-color="#57534d"/></linearGradient>'+
+    '<pattern id="lhat" width="1.6" height="1.6" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><path d="M0 0v1.6" stroke="#3a2f25" stroke-width=".45" opacity=".55"/></pattern>';
   // the key sits in the open ground between the title and the towns of the Westminster age; where it cannot, the plain legend stands in the corner
   let able=TOWNS.length;
   { rkey.hidden=true; const canStand=(t,boxes)=>LSTEPS.some(([ox,oy])=>{ const [bx,by]=P(t[4],t[5]), x=bx+ox*s, y=by+oy*s; return !lHit([x-38*s,y-48*s,x+38*s,y+30*s],boxes); });
@@ -2439,10 +2539,9 @@ function layoutLand(noKey){
       lel('ellipse',{cx:x,cy:y+1,rx:31*s,ry:4.6*s,fill:'#cdbf9c',opacity:.45},g);
       lel('path',{d:`M${x-27*s} ${y+1}q${27*s} ${-4.5*s} ${54*s} 0`,fill:'none',stroke:LINK,'stroke-width':.9,opacity:.5},g);
       for(let k=0;k<5;k++) lel('path',{d:`M${x+(5+k*4.5)*s} ${y+1}l${-3*s} ${4*s}`,stroke:LINK,'stroke-width':.7,opacity:.35},g);
-      LDRAW[dr](lel('g',{transform:`translate(${x} ${y}) scale(${1.1*s})`},g));
+      LDRAW[dr](lel('g',{transform:`translate(${x} ${y}) scale(${1.045*s})`},g));
       const lab=lel('text',{x,y:y+21*s,'text-anchor':'middle',class:'lname-t','font-size':16*s},g);
       lel('tspan',{fill:LRED},lab).textContent=name[0]; lel('tspan',{},lab).textContent=name.slice(1);
-      if(t[10]) LPALM(g,x+30*s,y-2*s);
       lel('rect',{class:'lhit',x:x-33*s,y:y-44*s,width:66*s,height:72*s},g); };
     // a town that would sit on the title, the key or another town steps a little aside, and gives way if it still cannot stand clear
     let ok=false; for(const [dx,dy] of LSTEPS){ x=P(sx,sy)[0]+dx*s; y=P(sx,sy)[1]+dy*s; build(); const b=g.getBBox(); if(!lHit([b.x,b.y,b.x+b.width,b.y+b.height],avoid)){ ok=true; avoid.push([b.x-6,b.y-4,b.x+b.width+6,b.y+b.height+4]); break; } }
@@ -2458,16 +2557,60 @@ function layoutLand(noKey){
   // the key yields if a town could find no place beside it
   if(!noKey&&!rkey.hidden&&landTowns.length<able){ landKey=''; return layoutLand(true); }
   let seed=17; const rnd=()=>{ seed=(seed*16807)%2147483647; return seed/2147483647; };
-  const ground=landSvg.insertBefore(lel('g',{class:'lground'}),TG);
-  const put=(fn,bx)=>{ const g=lel('g',{},ground); fn(g); const b=g.getBBox(); if(lHit([b.x,b.y,b.x+b.width,b.y+b.height],avoid)) g.remove(); };
-  const range=(x0,y0,len,n,amp)=>{ for(let i=0;i<n;i++){ const a=amp*(.75+rnd()*.5)*s, [hx,hy]=P(x0+i*len/n+rnd()*6, y0+rnd()*8-(i%2)*4);
-    put(g=>{ lel('path',{d:`M${hx-a*1.3} ${hy}q${a*1.3} ${-a*1.6} ${a*2.6} 0`,fill:'#e6dcc3',stroke:LINK,'stroke-width':1,opacity:.55},g);
-      for(let k=0;k<4;k++) lel('path',{d:`M${hx+a*.15+k*a*.28} ${hy-a*.7+k*a*.17}l${-a*.25} ${a*.55}`,stroke:LINK,'stroke-width':.7,opacity:.32},g); }); } };
-  const olive=(x,y)=>put(g=>{ lel('path',{d:`M${x} ${y}v${-6*s}`,stroke:LINK,'stroke-width':1.1,opacity:.6},g); lel('ellipse',{cx:x,cy:y-9*s,rx:5*s,ry:3.8*s,fill:'#9fae8a',stroke:LINK,'stroke-width':.9,opacity:.75},g); });
-  const grove=(cx,cy,n)=>{ for(let i=0;i<n;i++){ const [x,y]=P(cx+(i-n/2)*9+rnd()*4, cy+(i%2)*5); olive(x,y); } };
-  const fir=(x,y,a)=>put(g=>lel('path',{d:`M${x} ${y}v-3M${x-a*.5} ${y-3}l${a*.5} ${-a*1.6}l${a*.5} ${a*1.6}z`,fill:'#7f9a83',stroke:LINK,'stroke-width':.9,opacity:.7},g));
-  const wood=(cx,cy,w,n)=>{ for(let i=0;i<n;i++){ const [x,y]=P(cx+rnd()*w, cy+rnd()*28); fir(x,y,(7+rnd()*4)*s); } };
-  range(30,170,230,8,13); range(80,250,150,5,11); range(196,226,80,3,9);
+  const ground=landSvg.insertBefore(lel('g',{class:'lground',opacity:.8}),TG); // the land stays a step quieter than the towns
+  // nothing on the land may sit in the water
+  const wsc=(view.bottom-view.top)/(view.y1-view.y0);
+  const wetAt=(x,y0,y1,m)=>{ const u=xToU(x), yr=u2y(u); for(const id of ORDER){ const r=chAt(CH[id],yr); if(!r||r[1]<.004) continue; const c=Yp(r[0]+mea(u)), h=r[1]*wsc/2; if(y0<c+h+m&&y1>c-h-m) return true; } return false; };
+  const wetBox=(b,m)=>{ for(let i=0;i<=5;i++) if(wetAt(b[0]+(b[2]-b[0])*i/5,b[1],b[3],m)) return true; return false; };
+  const put=(fn,bx)=>{ const g=lel('g',{},ground); fn(g); const b=g.getBBox(), q=[b.x,b.y,b.x+b.width,b.y+b.height]; if(lHit(q,avoid)||wetBox(q,4)) g.remove(); };
+  // hills as an illuminator paints them: a soft wash of green earth or ochre, lit from the left with a pale stroke,
+  // the shaded flank hatched in ink, a ledge drawn across the slope
+  const hill=(hx,hy,a,ochre)=>put(g=>{ const w=a*(1.35+rnd()*.3), pk=hx+(rnd()-.4)*a*.35, top=hy-a*(1+rnd()*.2), f=n=>n.toFixed(1);
+    const d=`M${f(hx-w)} ${f(hy)}C${f(hx-w*.5)} ${f(hy-a*.15)} ${f(pk-a*.5)} ${f(top+a*.05)} ${f(pk)} ${f(top)}C${f(pk+a*.55)} ${f(top+a*.05)} ${f(hx+w*.5)} ${f(hy-a*.2)} ${f(hx+w)} ${f(hy)}`;
+    lel('path',{d:d+'z',fill:`url(#${ochre?'lhillO':'lhillG'})`,opacity:.62},g);
+    lel('path',{d:`M${f(hx-w*.72)} ${f(hy-a*.1)}C${f(hx-w*.4)} ${f(hy-a*.3)} ${f(pk-a*.45)} ${f(top+a*.2)} ${f(pk-a*.08)} ${f(top+a*.1)}`,fill:'none',stroke:'#fbf6e8','stroke-width':1.3,opacity:.85,'stroke-linecap':'round'},g);
+    let h=''; for(let k=1;k<6;k++){ const t=k/6.2, x=pk+(hx+w-pk)*t, y=top+(hy-top)*Math.pow(t,.75)+.6, L=a*(.5-t*.3); h+=`M${f(x)} ${f(y)}l${f(-L*.3)} ${f(L)}`; }
+    lel('path',{d:h,stroke:LINK,'stroke-width':.6,opacity:.42,fill:'none','stroke-linecap':'round'},g);
+    if(a>9*s) lel('path',{d:`M${f(pk-a*.35)} ${f(top+a*.55)}q${f(a*.4)} ${f(-a*.12)} ${f(a*.8)} ${f(a*.06)}`,stroke:LINK,'stroke-width':.5,opacity:.3,fill:'none'},g);
+    lel('path',{d,fill:'none',stroke:LINK,'stroke-width':.85,opacity:.55},g); });
+  const range=(x0,y0,len,n,amp,ochre)=>{ for(let i=0;i<n;i++){ const a=amp*(.75+rnd()*.5)*s, [hx,hy]=P(x0+i*len/n+rnd()*6, y0+rnd()*8-(i%2)*5); hill(hx,hy,a,ochre); } };
+  // trees as an engraver cut them: olives with twisted trunks and silvery scalloped crowns, a dark cypress among them,
+  // and in the north woods of firs in drooping tiers mixed with round-crowned oaks, each shaded on its right side
+  const scal=(cx,cy,rx,ry,n,b)=>{ let d=''; const ph=rnd()*6.28;
+    for(let i=0;i<=n;i++){ const a=ph+i*6.283/n, j=i%n===0?1:.86+rnd()*.24, px=cx+rx*j*Math.cos(a), py=cy+ry*j*Math.sin(a);
+      if(!i){ d=`M${px.toFixed(1)} ${py.toFixed(1)}`; continue; } const am=a-3.1416/n; d+=`Q${(cx+rx*b*Math.cos(am)).toFixed(1)} ${(cy+ry*b*Math.sin(am)).toFixed(1)} ${px.toFixed(1)} ${py.toFixed(1)}`; } return d+'z'; };
+  const tshade=(g,cx,cy,rx,ry)=>{ let d=''; for(let k=0;k<4;k++){ const a=-.5+k*.42, r=.55+rnd()*.25; d+=`M${(cx+rx*r*Math.cos(a)).toFixed(1)} ${(cy+ry*r*Math.sin(a)).toFixed(1)}l${(-1.8*s).toFixed(1)} ${(2.2*s).toFixed(1)}`; }
+    lel('path',{d,stroke:LINK,'stroke-width':.6,opacity:.55,fill:'none'},g); };
+  const tuft=(g,x,y)=>lel('path',{d:`M${x} ${y}l${-1.6*s} ${-2.8*s}M${x} ${y}l${.2*s} ${-3.6*s}M${x} ${y}l${1.7*s} ${-2.6*s}`,stroke:LINK,'stroke-width':.55,opacity:.45,fill:'none'},g);
+  const foot=(g,x,y,w)=>lel('path',{d:`M${x-w*.4} ${y+.6}h${w*1.1}`,stroke:LINK,'stroke-width':.6,opacity:.35},g);
+  const olive=(x,y)=>put(g=>{ foot(g,x,y,10*s);
+    lel('path',{d:`M${x-1.4*s} ${y}q${1.2*s} ${-2.6*s} ${-.2*s} ${-5.4*s}q${.4*s} ${-1.2*s} ${1.6*s} ${-2.2*s}M${x+1.2*s} ${y}q${-.6*s} ${-2.8*s} ${.8*s} ${-5.2*s}l${1.4*s} ${-1.6*s}`,fill:'none',stroke:LINK,'stroke-width':1.05,'stroke-linecap':'round',opacity:.8},g);
+    lel('path',{d:scal(x+.3*s,y-10*s,6.2*s,3.9*s,8,1.32),fill:'#a5ad8b',stroke:LINK,'stroke-width':.8,opacity:.9},g); tshade(g,x+.3*s,y-10*s,6.2*s,3.9*s);
+    if(rnd()<.6) tuft(g,x+(rnd()<.5?-5:6)*s,y+.4); });
+  const cypress=(x,y)=>put(g=>{ foot(g,x,y,6*s); const h=(19+rnd()*5)*s;
+    lel('path',{d:`M${x} ${y}v${-2*s}`,stroke:LINK,'stroke-width':1,opacity:.8},g);
+    lel('path',{d:`M${x-.3*s} ${y-2*s}q${-3*s} ${-h*.3} ${-1.4*s} ${-h*.72}q${.8*s} ${-h*.2} ${1.7*s} ${-h*.28}q${1.6*s} ${h*.16} ${2*s} ${h*.42}q${.6*s} ${h*.3} ${-2*s} ${h*.58}z`,fill:'#5d775f',stroke:LINK,'stroke-width':.8,opacity:.92},g);
+    lel('path',{d:`M${x+.6*s} ${y-5*s}l${.9*s} ${-1.6*s}M${x+.4*s} ${y-9*s}l${.9*s} ${-1.6*s}M${x+.2*s} ${y-13*s}l${.8*s} ${-1.5*s}`,stroke:LINK,'stroke-width':.55,opacity:.55},g); });
+  const fir=(x,y,a)=>put(g=>{ foot(g,x,y,a*1.1); lel('path',{d:`M${x} ${y}v${-3*s}`,stroke:LINK,'stroke-width':1,opacity:.8},g);
+    const H=a*2.1; for(let t=0;t<4;t++){ const w=a*(.62-t*.12), yb=y-3*s-t*H*.2, ht=H*(.42-t*.04);
+      lel('path',{d:`M${x-w} ${yb}Q${x-w*.28} ${yb-ht*.42} ${x} ${yb-ht}Q${x+w*.28} ${yb-ht*.42} ${x+w} ${yb}Q${x} ${yb-ht*.2} ${x-w} ${yb}z`,fill:'#6b8870',stroke:LINK,'stroke-width':.75,'stroke-linejoin':'round',opacity:.92},g);
+      lel('path',{d:`M${x} ${yb-ht}Q${x+w*.28} ${yb-ht*.42} ${x+w} ${yb}Q${x+w*.45} ${yb-ht*.12} ${x+.4} ${yb-ht*.2}z`,fill:'url(#lhat)'},g); }
+    if(rnd()<.4) tuft(g,x-a*.8,y+.4); });
+  const oak=(x,y,a)=>put(g=>{ foot(g,x,y,a*1.3);
+    lel('path',{d:`M${x-.8*s} ${y}l${.3*s} ${-a*.75}l${-2*s} ${-2*s}M${x+.8*s} ${y}l${-.1*s} ${-a*.75}l${2.2*s} ${-1.8*s}`,fill:'none',stroke:LINK,'stroke-width':1,'stroke-linecap':'round',opacity:.8},g);
+    const cy=y-a*1.25; lel('path',{d:scal(x,cy,a*.72,a*.6,10,1.28),fill:'#879b74',stroke:LINK,'stroke-width':.8,opacity:.92},g); tshade(g,x,cy,a*.72,a*.6); });
+  const grove=(cx,cy,n)=>{ for(let i=0;i<n;i++){ const [x,y]=P(cx+(i-n/2)*10+rnd()*4, cy+(i%2)*5); (i===1&&n>2?cypress:olive)(x,y); } };
+  const wood=(cx,cy,w,n)=>{ for(let i=0;i<n;i++){ const [x,y]=P(cx+rnd()*w, cy+rnd()*28), a=(7+rnd()*4)*s; (rnd()<.3?oak:fir)(x,y,a); } };
+  // hill country: the highlands of the East in ochre, the Alps and the northern uplands in green earth
+  range(30,170,230,8,13,1); range(80,250,150,5,11,1); range(196,226,80,3,9,1); range(250,600,90,4,10,1); range(30,600,110,5,10,1);
+  range(400,600,120,5,12); range(470,640,90,4,9); range(640,190,130,5,11); range(560,240,80,3,8); range(880,520,100,4,10);
+  range(860,250,140,5,10); range(1080,560,120,4,9); range(1180,520,90,3,8); range(980,860,100,4,8); range(700,860,120,5,9); range(300,860,80,3,8,1);
+  // and beyond the named ranges, low hills in clusters wherever the land lies open, each cluster laid on a faint wash
+  { const wash=ground.insertBefore(lel('g',{class:'lwash'}),ground.firstChild);
+    for(let gy=150;gy<900;gy+=58) for(let gx=20+(gy/58%2)*30;gx<1430;gx+=64){ const n=Math.sin(gx*.011+gy*.017)+Math.sin(gx*.023-gy*.009); if(n<.35||rnd()<.3) continue;
+      const ochre=gx<430||(gx<560&&gy<300), [cx,cy]=P(gx+rnd()*20,gy+rnd()*14), rx=46*s, ry=20*s, wb=[cx-rx,cy-ry,cx+rx,cy+ry];
+      if(!wetBox(wb,6)&&!lHit(wb,avoid.slice(0,avoid.length-landTowns.length))) lel('ellipse',{cx,cy:cy-6*s,rx,ry,fill:`url(#${ochre?'lwashO':'lwashG'})`},wash);
+      const k=1+Math.floor(rnd()*3); for(let i=0;i<k;i++) hill(cx+(i-(k-1)/2)*15*s+rnd()*4,cy+(i%2)*4*s,(6+rnd()*4)*s,ochre); } }
   grove(28,280,2); grove(118,500,3); grove(200,340,3); grove(320,516,2);
   wood(470,505,80,9); wood(620,520,70,8); wood(700,610,60,6);
   // the sea, from the age of missions, held above the rule of centuries
@@ -2476,7 +2619,7 @@ function layoutLand(noKey){
     const sb=Hd-30, Q=(x,y)=>{ const p=P(x,y); return [p[0],Math.min(Math.max(p[1],st),sb)]; }, f=n=>n.toFixed(1);
     const c=[[1146,872],[1150,852],[1160,838],[1196,828],[1300,820],[1340,812],[1420,804],[1440,800]].map(p=>Q(p[0],p[1]));
     const coast=`M${f(c[0][0])} ${f(c[0][1])}C${f(c[1][0])} ${f(c[1][1])} ${f(c[2][0])} ${f(c[2][1])} ${f(c[3][0])} ${f(c[3][1])}S${f(c[4][0])} ${f(c[4][1])} ${f(c[5][0])} ${f(c[5][1])} ${f(c[6][0])} ${f(c[6][1])} ${f(Wd)} ${f(c[7][1])}`;
-    lel('path',{d:coast+`V${sb}Z`,fill:'#c9d3e4',opacity:.45},ground); lel('path',{d:coast,fill:'none',stroke:LINK,'stroke-width':1.1,opacity:.55},ground);
+    lel('path',{class:'lseafill',d:coast+`V${sb}Z`,fill:'#c9d3e4',opacity:.45},ground); lel('path',{d:coast,fill:'none',stroke:LINK,'stroke-width':1.1,opacity:.55},ground);
     for(let r=0;r<3;r++){ let d=''; const [x0,y]=Q(1172+r*4+(r%2)*9, 840+r*10), [x1]=P(1232,0); for(let x=x0;x<x1;x+=(26+rnd()*10)*s) d+=`M${x} ${Math.min(y+rnd()*3,sb-4)}q${4*s} ${-4*s} ${8*s} 0t${8*s} 0`; lel('path',{d,fill:'none',stroke:'#2f4a8a','stroke-width':1,opacity:.6},ground); }
     const cl=lel('path',{id:'lcoast',d:smoothPath(Q,[[1226,868],[1270,861],[1320,856],[1360,853],[1416,850],[1436,849]]),fill:'none'},ground);
     const t=lel('text',{class:'lsea','font-size':13.5*s},ground); lel('textPath',{href:'#lcoast',startOffset:'50%','text-anchor':'middle'},t).textContent='as the waters cover the sea';
@@ -2486,6 +2629,22 @@ function layoutLand(noKey){
     lel('path',{d:'M-16 0h32l-5 6h-22z',fill:'#8a6a48',stroke:LINK,'stroke-width':1},ship);
     [[-8,18],[2,24],[11,16]].forEach(([x,h])=>{ lel('path',{d:`M${x} 0v${-h}`,stroke:LINK,'stroke-width':1},ship); lel('path',{d:`M${x-5} ${-h+3}q5 3 10 0v${h*.45}q-5 3 -10 0z`,fill:'url(#lwall)',stroke:LINK,'stroke-width':.8},ship); });
     lel('path',{d:'M2 -24l7 2-7 2',fill:LRED},ship); }
+  // the ground itself, faint as the grain of the skin: stippled banks along every stream, a scatter of grass and dots over the open land,
+  // and here and there a rubricator's three red dots
+  { const tex=ground.insertBefore(lel('g',{class:'ltex'}),ground.firstChild), sea=landSvg.querySelector('.lseafill');
+    let bank='', dots='', tufts='', reds=''; const step=11*s, f=n=>n.toFixed(1);
+    const clear=(x,y,r)=>!lHit([x-r,y-r,x+r,y+r],avoid)&&!(sea&&sea.isPointInFill(new DOMPoint(x,y)));
+    for(let y=100;y<Hd-36;y+=step) for(let x=6;x<Wd-6;x+=step){ const jx=x+(rnd()-.5)*step, jy=y+(rnd()-.5)*step;
+      if(wetAt(jx,jy,jy,7*s)) continue;
+      if(wetAt(jx,jy,jy,17*s)){ if(rnd()<.6&&clear(jx,jy,2)) bank+=`M${f(jx)} ${f(jy)}h0`; continue; }
+      const r=rnd(); if(r>.24||!clear(jx,jy,5)) continue;
+      if(r<.005) reds+=`M${f(jx)} ${f(jy)}h0M${f(jx+2.6*s)} ${f(jy)}h0M${f(jx+1.3*s)} ${f(jy-2.2*s)}h0`;
+      else if(r<.09) tufts+=`M${f(jx)} ${f(jy)}l${f(-1.4*s)} ${f(-2.4*s)}M${f(jx)} ${f(jy)}l${f(.2*s)} ${f(-3*s)}M${f(jx)} ${f(jy)}l${f(1.5*s)} ${f(-2.2*s)}`;
+      else dots+=`M${f(jx)} ${f(jy)}h0` + (rnd()<.4?`M${f(jx+2.2)} ${f(jy+1)}h0`:''); }
+    lel('path',{d:bank,stroke:'#4f6584','stroke-width':1.2,'stroke-linecap':'round',opacity:.34,fill:'none'},tex);
+    lel('path',{d:dots,stroke:LINK,'stroke-width':1.1,'stroke-linecap':'round',opacity:.24,fill:'none'},tex);
+    lel('path',{d:tufts,stroke:'#55704f','stroke-width':.7,'stroke-linecap':'round',opacity:.42,fill:'none'},tex);
+    lel('path',{d:reds,stroke:LRED,'stroke-width':1.5,'stroke-linecap':'round',opacity:.5,fill:'none'},tex); }
   // roads, hidden until a town is pointed at
   const roads=landSvg.insertBefore(lel('g',{}),TG);
   LROADS.forEach(r=>{ r.el=lel('path',{class:'lroad',d:smoothPath(P,r.pts)},roads); });
@@ -2504,11 +2663,10 @@ function layoutLand(noKey){
     rkey.innerHTML='<p class="rkey-h">The key to the river</p><ul>'+LKEY.map(([m,s])=>`<li><svg width="30" height="16" viewBox="-15 -8 30 16" aria-hidden="true">${{
       gold:'<path d="M-13 0h26" stroke="#b8862a" stroke-width="3" stroke-linecap="round"/>',dia:'<path d="M0 -6l6 6-6 6-6-6z" fill="#b8862a" stroke="#3a2f25" stroke-width=".8"/>',
       dot:'<circle r="3" fill="#2b2620"/>',pale:'<path d="M-13 0h26" stroke="#a9b6d6" stroke-width="5"/>',
-      road:'<path d="M-13 0h26" stroke="#a8361d" stroke-width="2.6" stroke-dasharray=".1 7" stroke-linecap="round"/>',
-      palm:'<g transform="translate(-3 7)" stroke="#a8361d" fill="none"><path d="M0 0q2 -10 7 -16" stroke-width="1.4"/><path d="M1.2 -0.7l-5 -2M1.2 -0.7l4 -4M2.3 -3.3l-5 -2M2.3 -3.3l4 -4M3.5 -6l-5 -2M3.5 -6l4 -4M4.7 -8.7l-5 -2M4.7 -8.7l4 -4M5.8 -11.3l-5 -2M5.8 -11.3l4 -4" stroke-width="1.1"/></g>'}[m]}</svg>${s}</li>`).join('')+'</ul>'; }
+      road:'<path d="M-13 0h26" stroke="#a8361d" stroke-width="2.6" stroke-dasharray=".1 7" stroke-linecap="round"/>'}[m]}</svg>${s}</li>`).join('')+'</ul>'; }
 }
 function openTown(i){ const t=TOWNS[i], [name,yr,st,dr,sx,sy,era,ch,q,who]=t;
-  tslip.innerHTML=`<h3>${name}</h3><p class="meta">${yr} · ${LSTREAM[st]}</p><q>${q}</q><p class="who">${who}</p><button type="button" class="go">Read it in ${ERAS[era].name} ›</button>`;
+  tslip.innerHTML=`<h3><span class="ri">${name[0]}</span>${name.slice(1)}</h3><p class="meta">${yr} · ${LSTREAM[st]}</p><svg class="orn" viewBox="0 0 120 12" aria-hidden="true"><path d="M4 6h44M72 6h44" stroke="#3a2f25" stroke-width=".6" opacity=".55"/><circle cx="50.5" cy="6" r="1.1" fill="#a8361d"/><circle cx="69.5" cy="6" r="1.1" fill="#a8361d"/><path d="M60 1.2c-2.6 1.6-4.6 3.2-4.6 4.8s2 3.2 4.6 4.8c2.6-1.6 4.6-3.2 4.6-4.8s-2-3.2-4.6-4.8z" fill="#a8361d"/><path d="M60 3.2v5.6" stroke="#f2ead6" stroke-width=".6"/></svg><q>${q}</q><p class="who">${who}</p><button type="button" class="go"><svg width="15" height="11" viewBox="0 0 15 11" aria-hidden="true"><path d="M1 5.5h4.5" stroke="#a8361d" stroke-width=".9"/><path d="M5.5 5.5c1.5-4 6-5 8.5-4.5c-.5 2-1.5 4.5-3.5 4.5c2 0 3 2.5 3.5 4.5c-2.5.5-7-.5-8.5-4.5z" fill="#a8361d"/></svg>Read it in ${ERAS[era].name}</button>`;
   tslip.querySelector('.go').addEventListener('click',()=>readTown(i));
   tslip.hidden=false; const sw=tslip.offsetWidth, sh=tslip.offsetHeight, s=landMap().s;
   let left=t.x+44*s, top=t.y-60*s; if(left+sw>Wd-10) left=t.x-44*s-sw; left=Math.max(10,left); top=Math.max(100,Math.min(top,Hd-40-sh));
