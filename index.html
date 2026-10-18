@@ -83,6 +83,7 @@ h1{font-family:var(--display); font-weight:400; font-size:clamp(2.5rem,5.4vw,4.4
 .is-era .corner{opacity:0; visibility:hidden}
 /* on the way back the title waits until the river has mostly widened, so it is never written across the era's water */
 .title-card,.corner{transition-delay:.38s} .is-era .title-card,.is-era .corner{transition-delay:0s}
+.returning .title-card,.returning .corner,.returning #land,.returning .rkey{transition-duration:.42s; transition-delay:.55s} .returning .elabel{transition-delay:.3s}
 @media (prefers-reduced-motion:reduce){ .title-card,.corner{transition-delay:0s} }
 @media (max-width:680px){
   .title-card{max-width:calc(100% - 32px); bottom:92px} .title-card h1{font-size:min(2.9rem,12.4vw)}
@@ -1282,6 +1283,8 @@ function paintVellum(S){
 // so it is painted onto its own sheet and laid down whole while nothing changes
 let fontGen=0;
 if(document.fonts) document.fonts.addEventListener('loadingdone',()=>{ fontGen++; });
+// the land is set again only when one of its own faces arrives, never because an era's hand loaded while one was reading
+const landFonts=()=>{ try{ return ['IM Fell Great Primer','IM Fell Great Primer SC','IM Fell French Canon','IM Fell English','IM Fell English SC'].map(f=>document.fonts.check(`16px "${f}"`)?1:0).join(''); }catch(e){ return ''; } };
 function drawTop(S){
   const key=[view.u0,view.u1,view.y0,view.y1,view.top,view.bottom,Wd,Hd,cvH,dpr,skin,mode,cur,eraFade.toFixed(3),hv.toFixed(3),lastHover,mouse?mouse.join(':'):'',showGT,fontGen].join();
   if(key!==tKey){ tKey=key;
@@ -2223,18 +2226,35 @@ function enter(i, labelEl){
 }
 // the reader's place: an era change or a return starts at the top of the river, not deep in the old era's text
 function toStage(){ const stTop=stage.getBoundingClientRect().top+window.scrollY; if(window.scrollY>stTop+4) window.scrollTo({top:stTop, behavior:'auto'}); }
+/* Back to the whole river, in three movements so nothing heavy happens while anything moves:
+   the era's head and leaves fade where they stand (quick, the river holds still); then, unseen, the stage takes its full height at once,
+   the page returns to the top and the land is made ready; then one unbroken pull-back of the river, the country and the title arriving as it settles. */
 function leave(){
   if(mode!=='era') return; busy=true; const was=cur; setURL(''); pendingKey='';
-  enterTimers.forEach(clearTimeout); enterTimers=[]; endFlight(); toStage();
+  enterTimers.forEach(clearTimeout); enterTimers=[]; endFlight();
   if(leafOff) leafOff(); if(quietOff) quietOff();
-  ++stepTok; art.classList.remove('leaving');
+  const tok=++stepTok; clearTimeout(stepTimer);
   labels.inert=false; hover=-1; quietFocus=true; if(ERAS[was]){ const L=ERAS[was].el; L.dataset.quiet=''; const unq=()=>{ delete L.dataset.quiet; removeEventListener('keydown',unq,true); removeEventListener('pointerdown',unq,true); }; addEventListener('keydown',unq,true); addEventListener('pointerdown',unq,true); L.focus({preventScroll:true}); } quietFocus=false; // focus returns to the era's name, but the river comes back whole and unselected
-  eraHead.classList.remove('landed'); art.classList.remove('show');
-  [ehMeta,ehTitle,eraHead.querySelector('nav')].forEach(e=>e.getAnimations().forEach(an=>an.cancel()));
-  document.body.classList.remove('is-era');
-  mode='home'; tweenTo({kind:'home'}, 800); clearTimeout(stepTimer);
-  if(reduce) riverLayers.forEach(c=>c.animate([{opacity:.25},{opacity:1}],{duration:200,easing:'ease'}));
-  setTimeout(()=>{ art.hidden=true; cur=-1; busy=false; }, reduce?0:250);
+  const parts=[ehMeta,ehTitle,eraHead.querySelector('nav')]; parts.forEach(e=>e.getAnimations().forEach(an=>an.cancel()));
+  if(reduce){ toStage(); art.classList.remove('leaving'); eraHead.classList.remove('landed'); art.classList.remove('show'); document.body.classList.remove('is-era');
+    mode='home'; tweenTo({kind:'home'}, 800); riverLayers.forEach(c=>c.animate([{opacity:.25},{opacity:1}],{duration:200,easing:'ease'}));
+    art.hidden=true; cur=-1; busy=false; return; }
+  const EO='cubic-bezier(.23,1,.32,1)', far=window.scrollY>stage.getBoundingClientRect().top+window.scrollY+4;
+  // 1. the era fades where it stands
+  art.classList.add('leaving'); art.classList.remove('show');
+  [...parts,art].forEach(e=>e.animate([{opacity:1},{opacity:0}],{duration:150,easing:EO,fill:'forwards'}));
+  stepTimer=setTimeout(()=>{ if(tok!==stepTok) return;
+    // 2. unseen: full height at once, back to the top, the land made ready for the whole river
+    if(far) toStage();
+    art.hidden=true; art.classList.remove('leaving'); [...parts,art].forEach(e=>e.getAnimations().forEach(an=>an.cancel())); // hidden first, so the restyle below skips the era's long text
+    inner.style.transition='none'; eraHead.classList.remove('landed'); document.body.classList.add('returning'); document.body.classList.remove('is-era'); mode='home'; void inner.offsetHeight; size(); inner.style.transition='';
+    // the land is normally still standing from the last visit and costs nothing here; it is set only after a resize or a first arrival by link
+    if(landReady){ const v=view; view=resolve({kind:'home'}); try{ layoutLand(); }catch(e){ console.error(e); } view=v; }
+    // 3. one unbroken pull-back (it eases in, so the first frame after the work above loses nothing)
+    if(far) riverLayers.forEach(c=>c.animate([{opacity:.3},{opacity:1}],{duration:320,easing:EO}));
+    tweenTo({kind:'home'}, 950);
+    stepTimer=setTimeout(()=>{ if(tok!==stepTok) return; document.body.classList.remove('returning'); cur=-1; busy=false; }, 1000);
+  }, 160);
 }
 // Stepping never locks input: a second press retargets the river from wherever it is.
 let stepTimer=0, stepTok=0;
@@ -2503,7 +2523,7 @@ const inkRect=e=>{ const r=document.createRange(); r.selectNodeContents(e); retu
 const LSTEPS=[[0,0],[0,-16],[0,16],[0,-32],[0,32],[16,-16],[16,0],[-16,0],[16,-32],[32,0],[32,-16],[-32,0],[0,-48],[0,48],[0,-60],[48,32],[48,48],[48,64],[-48,32]];
 const lHit=(b,boxes)=>boxes.some(q=>b[0]<q[2]&&b[2]>q[0]&&b[1]<q[3]&&b[3]>q[1]);
 function layoutLand(noKey){
-  const wide=landWide(), key=[Wd,Hd,wide,fontGen].join();
+  const wide=landWide(), key=[Wd,Hd,wide,landFonts()].join();
   inner.classList.toggle('land-on',wide);
   if(key===landKey) return; landKey=key; landSvg.textContent=''; landTowns=[]; closeTown(true);
   landSvg.setAttribute('width',Wd); landSvg.setAttribute('height',Hd); landSvg.setAttribute('viewBox',`0 0 ${Wd} ${Hd}`);
