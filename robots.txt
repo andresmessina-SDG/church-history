@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://andresmessina-sdg.github.io/church-history/sitemap.xml
