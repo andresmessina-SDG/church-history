@@ -390,6 +390,13 @@ h1{font-family:var(--display); font-weight:400; font-size:clamp(2.5rem,5.4vw,4.4
 .bg a, .cat a{color:var(--water); text-underline-offset:.18em; text-decoration-thickness:.06em}
 .cat h3{font-family:var(--display); font-weight:400; font-size:clamp(1.6rem,2.6vw,2.1rem); line-height:1.15; margin:.1em 0 .2em; text-wrap:balance}
 .chhead{margin-bottom:calc(.9em - 8px) !important}
+/* a link to share: the page of this chapter or era, which any reader, search engine or link preview can open */
+.chlink{display:inline-flex; align-items:center; gap:6px; margin:2px 0 0; padding:2px 0; border:0; background:none; cursor:pointer; font-family:var(--primer,var(--display)); font-style:italic; font-size:.95rem; color:var(--accent)}
+.chlink .lk, .sharebtn .lk{flex:none; transition:transform .2s var(--ease-out)}
+@media (hover:hover) and (pointer:fine){ .chlink:hover span{text-decoration:underline; text-decoration-thickness:.5px; text-underline-offset:3px} .chlink:hover .lk{transform:rotate(-12deg)} }
+.chlink[data-done] span::after{content:' · copied'; color:var(--muted)}
+.era-head nav .sharebtn{display:inline-flex; align-items:center; justify-content:center; padding:6px 10px}
+.era-head nav .sharebtn[data-done]{border-color:var(--gloss); color:var(--gloss)}
 .b-sch{font-size:1.04rem; line-height:1.62; color:#3B342B}
 .b-w p, .b-ref p{margin:0; font-size:1.08rem; line-height:1.64}
 .lem{display:block; font-family:var(--label); color:var(--accent); font-size:1rem; letter-spacing:.04em; line-height:1.2; margin-bottom:.25em}
@@ -766,6 +773,7 @@ html{-webkit-text-size-adjust:100%; text-size-adjust:100%}
             <button type="button" id="up">← Upstream</button>
             <button type="button" id="back"><span class="lg">The whole river</span><span class="md">Whole river</span><span class="sm">River</span></button>
             <button type="button" id="down">Downstream →</button>
+            <button type="button" id="shareHere" class="sharebtn" aria-label="Copy a link to this page" title="Copy a link to this page"><svg class="lk" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M6.6 9.4l2.8-2.8M7.4 4.6l1.3-1.3a2.6 2.6 0 0 1 3.7 3.7l-1.3 1.3M8.6 11.4l-1.3 1.3a2.6 2.6 0 0 1-3.7-3.7l1.3-1.3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
           </nav>
         </div>
         <div class="tip" id="tip" hidden></div>
@@ -1543,7 +1551,7 @@ function renderRich(E){
     const heads=c.blocks.map((b,i)=>b.k==='head'?i:-1).filter(i=>i>2), mid=c.blocks.length/2;
     const split=heads.length?heads.reduce((a,i)=>Math.abs(i-mid)<Math.abs(a-mid)?i:a):-1;
     rows.push(`<div class="b explicit">${HEDERA}</div><aside class="bg">${c.read&&c.read.length?note('Read on: '+c.read.map(x=>x.url?`<a href="${x.url}" target="_blank" rel="noopener">${x.label}</a>`:x.label).join('; ')+'.'):''}</aside>`);
-    leaf('story', key, catena(key, `<header class="b chhead"><span class="chn">Chapter ${ROMAN(c.n).toUpperCase()} · ${c.yrs}</span><h3>${c.title}</h3></header>`, rows, c.blocks.length+1, '', split)); });
+    leaf('story', key, catena(key, `<header class="b chhead"><span class="chn">Chapter ${ROMAN(c.n).toUpperCase()} · ${c.yrs}</span><h3>${c.title}</h3><button type="button" class="chlink" data-share="${key}"><svg class="lk" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M6.6 9.4l2.8-2.8M7.4 4.6l1.3-1.3a2.6 2.6 0 0 1 3.7 3.7l-1.3 1.3M8.6 11.4l-1.3 1.3a2.6 2.6 0 0 1-3.7-3.7l1.3-1.3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg><span>Link to this chapter</span></button></header>`, rows, c.blocks.length+1, '', split)); });
 
   // Readings: how the Reformers read this era, in their own words
   const rd=X.readings||[];
@@ -2342,6 +2350,20 @@ function sync(){ clearTimeout(syncT); const r=parseHash(); if(!r) return;
 var pendingKey='';
 try{ history.scrollRestoration='manual'; }catch(e){}
 addEventListener('popstate',sync); addEventListener('hashchange',sync);
+/* ---------- Sharing ----------
+   The address bar keeps the river's own #place, so a reload returns to the river; but a link given away should open anywhere, so the link buttons hand
+   out the readable page of the chapter or era (/reformation/4/), which has its own title and preview and leads back into the river at the same place.
+   On a phone the system's share sheet is offered; elsewhere the link is copied. */
+const pageURL=key=>{ const c=document.querySelector('link[rel="canonical"]'), base=(c?c.href:location.href.split('#')[0]).replace(/[?#].*$/,'').replace(/[^/]*$/,''), m=/^ch-(\d+)$/.exec(key||'');
+  return base+SLUG[RENDER_I]+'/'+(m?m[1]+'/':''); };
+async function shareLink(key,btn){ const url=pageURL(key), e=ERAS[RENDER_I], m=/^ch-(\d+)$/.exec(key||''), h=m&&art.querySelector(`.chlink[data-share="${key}"]`)?.closest('.chhead')?.querySelector('h3');
+  const title=(h?h.textContent+' · ':'')+e.name; let done='Link copied';
+  if(navigator.share&&matchMedia('(pointer:coarse)').matches){ try{ await navigator.share({title,url}); return; }catch(err){ if(err&&err.name==='AbortError') return; } }
+  try{ await navigator.clipboard.writeText(url); }
+  catch(err){ const t=document.createElement('textarea'); t.value=url; t.setAttribute('readonly',''); t.style.cssText='position:fixed;opacity:0;top:0'; document.body.appendChild(t); t.select(); try{ document.execCommand('copy'); }catch(e2){ done='Link: '+url; } t.remove(); }
+  $('eraLive').textContent=done+(h?' to '+h.textContent:' to '+e.name); btn.dataset.done=''; clearTimeout(btn._t); btn._t=setTimeout(()=>{ delete btn.dataset.done; },2200); }
+art.addEventListener('click',ev=>{ const b=ev.target.closest('[data-share]'); if(b){ ev.preventDefault(); shareLink(b.dataset.share,b); } });
+$('shareHere').addEventListener('click',ev=>shareLink(/^ch-\d+$/.test(lastLeaf)?lastLeaf:'',ev.currentTarget));
 var rib=document.createElement('button'); rib.type='button'; rib.className='ribbon'; rib.hidden=true;
 rib.innerHTML='<i aria-hidden="true"></i>';
 labels.after(rib);
