@@ -182,8 +182,9 @@ h1{font-family:var(--display); font-weight:400; font-size:clamp(2.5rem,5.4vw,4.4
 .title-card .colo{margin:.7em 0 0; font-family:var(--primer); font-style:italic; font-size:1rem; line-height:1.3}
 .title-card .colo a{color:var(--accent); text-decoration:none; pointer-events:auto}
 @media (hover:hover) and (pointer:fine){ .title-card .colo a:hover{text-decoration:underline; text-decoration-thickness:.5px; text-underline-offset:3px} }
-.land-on .title-card{bottom:max(52px,clamp(24px,5vh,56px))}
-.land-on .corner{bottom:max(52px,clamp(24px,5vh,56px))}
+.land-on .title-card{bottom:max(80px,calc(clamp(24px,5vh,56px) + 28px))}
+/* with the land drawn, the plain legend stands under the title, so the corner is left to the sea */
+.land-on .corner{left:var(--gut); right:auto; bottom:max(26px,calc(clamp(24px,5vh,56px) - 26px)); align-items:flex-start; text-align:left; max-width:min(48%,600px)}
 /* era heads: numeral, name and dates on shared baselines, no shrinking */
 @media (min-width:821px){
   .elabel .num{font-family:var(--canon); font-size:22px; letter-spacing:.02em; line-height:1.05}
@@ -867,15 +868,25 @@ const ERAS = [
 ];
 const TW = ERAS.reduce((s,e)=>s+e.w,0); let acc=0;
 ERAS.forEach(e=>{e.u0=acc/TW; acc+=e.w; e.u1=acc/TW;});
-function y2u(yr){
-  const f=ERAS[0]; if(yr<f.a) return f.u0+(yr-f.a)/(f.b-f.a)*(f.u1-f.u0);
-  for(const e of ERAS) if(yr<=e.b) return e.u0+(yr-e.a)/(e.b-e.a)*(e.u1-e.u0);
-  const l=ERAS[ERAS.length-1]; return l.u1+(yr-l.b)/(l.b-l.a)*(l.u1-l.u0);
+/* Time along the river. Each era keeps its own span of the page, but where one era's pace of years meets the next the change is eased
+   over a quarter of the shorter era, so a stream crossing an era's edge bends smoothly instead of kinking. (Never more than 8px from the plain rule.) */
+const WK=ERAS.map(e=>[e.a,e.u0]).concat([[ERAS[ERAS.length-1].b,1]]);
+const WS=WK.slice(0,-1).map((k,i)=>(WK[i+1][1]-k[1])/(WK[i+1][0]-k[0]));
+function y2uLin(yr){ let i=0; while(i<WS.length-1&&yr>WK[i+1][0]) i++; return WK[i][1]+(yr-WK[i][0])*WS[i]; }
+function y2uSmooth(yr){
+  for(let i=1;i<WK.length-1;i++){ const t=WK[i][0], hw=.25*Math.min(t-WK[i-1][0],WK[i+1][0]-t);
+    if(Math.abs(yr-t)<hw){ const s0=WS[i-1], s1=WS[i], x=yr-t+hw; return WK[i][1]-s0*hw+s0*x+(s1-s0)*x*x/(4*hw); } }
+  return y2uLin(yr);
 }
-function u2y(u){
-  for(const e of ERAS) if(u<=e.u1) return e.a+(u-e.u0)/(e.u1-e.u0)*(e.b-e.a);
-  const l=ERAS[ERAS.length-1]; return l.b+(u-l.u1)/(l.u1-l.u0)*(l.b-l.a);
-}
+// both directions are read from tables, since the streaks ask for thousands of conversions a frame
+const WT={y0:-400,dy:.25,u:null}; { const n=Math.round((2600-WT.y0)/WT.dy)+1; WT.u=new Float64Array(n); for(let i=0;i<n;i++) WT.u[i]=y2uSmooth(WT.y0+i*WT.dy); }
+function y2u(yr){ const f=(yr-WT.y0)/WT.dy, i=Math.floor(f); if(i<0||i>=WT.u.length-1) return y2uSmooth(yr); return WT.u[i]+(WT.u[i+1]-WT.u[i])*(f-i); }
+const UT={u0:WT.u[0],u1:WT.u[WT.u.length-1],n:16384,y:null};
+{ UT.y=new Float64Array(UT.n+1); let j=0; for(let i=0;i<=UT.n;i++){ const u=UT.u0+(UT.u1-UT.u0)*i/UT.n; while(j<WT.u.length-2&&WT.u[j+1]<u) j++;
+    UT.y[i]=WT.y0+WT.dy*(j+(u-WT.u[j])/(WT.u[j+1]-WT.u[j])); } }
+function u2y(u){ const f=(u-UT.u0)/(UT.u1-UT.u0)*UT.n, i=Math.floor(f);
+  if(i<0){ return WT.y0+(u-UT.u0)/WS[0]; } if(i>=UT.n){ return UT.y[UT.n]+(u-UT.u1)/WS[WS.length-1]; }
+  return UT.y[i]+(UT.y[i+1]-UT.y[i])*(f-i); }
 
 /* ---------- Channels: [year, centre, width] keyframes (units of river height) ---------- */
 const CH = {
@@ -906,13 +917,35 @@ const DEP={
   oneness:{k:[[1913,.71,0],[1916,.737,.004],[1960,.742,0]], name:'Oneness Pentecostals', note:'Rejected the Trinity, 1913–16', from:'pentecostal'},
 };
 const sm = s => s*s*(3-2*s);
+// swellK: on a phone the river is squeezed sideways, so the width's slow swell is calmed or the trunk looks lumpy.
+// lod: as the view closes in on an era, finer bends come up in the water (0 on the whole river, 1 inside an era).
+var swellK=1, lod=0;
+// a church's width runs through its keyframes on one smooth curve that never overshoots (Fritsch–Carlson), so it does not stall at each keyframe
+function wTan(k){ if(k._m) return k._m; const n=k.length, d=[], m=[];
+  for(let i=0;i<n-1;i++) d.push((k[i+1][2]-k[i][2])/(k[i+1][0]-k[i][0]));
+  m[0]=d[0]||0; m[n-1]=d[n-2]||0;
+  for(let i=1;i<n-1;i++){ if(d[i-1]*d[i]<=0){ m[i]=0; continue; } const h0=k[i][0]-k[i-1][0], h1=k[i+1][0]-k[i][0], w1=2*h1+h0, w2=h1+2*h0; m[i]=(w1+w2)/(w1/d[i-1]+w2/d[i]); }
+  return k._m=m; }
 function chAt(ch,yr){
-  const k=ch.k; if(yr<k[0][0]||yr>k[k.length-1][0]) return null;
-  const ph=ch.ph||0, swell=(1+.11*Math.sin(yr*.011+ph)+.05*Math.sin(yr*.029+ph*2.3))*(1+.45*Math.max(0,(yr-1900)/126));
-  for(let i=0;i<k.length-1;i++){ if(yr<=k[i+1][0]){ const s=sm((yr-k[i][0])/(k[i+1][0]-k[i][0])); return [k[i][1]+(k[i+1][1]-k[i][1])*s, (k[i][2]+(k[i+1][2]-k[i][2])*s)*swell]; } }
+  const k=ch.k; if(yr<k[0][0]||yr>k[k.length-1][0]){ // years read back from the time tables may land a hair outside a church's span
+    if(yr>k[0][0]-.02&&yr<k[0][0]) yr=k[0][0]; else if(yr<k[k.length-1][0]+.02&&yr>k[k.length-1][0]) yr=k[k.length-1][0]; else return null; }
+  const ph=ch.ph||0, swell=(1+swellK*(.11*Math.sin(yr*.011+ph)+.05*Math.sin(yr*.029+ph*2.3)))*(1+.45*Math.max(0,(yr-1900)/126));
+  for(let i=0;i<k.length-1;i++){ if(yr<=k[i+1][0]){
+    const h=k[i+1][0]-k[i][0], t=(yr-k[i][0])/h, s=sm(t); let c=k[i][1]+(k[i+1][1]-k[i][1])*s, w, own=1;
+    if(i===0&&k[0][2]===0){
+      // a new church opens quickly to its own width while it is still leaving the parent water, as a real branch does,
+      // and wanders once on its way out rather than running down a straight ramp
+      w=k[1][2]*(ch.from?1-Math.pow(1-t,1.8):s); // (the ancient churches of the East part slowly from the broad undivided water, as before)
+      const dc=k[1][1]-k[0][1]; c+=Math.min(.045,.18*Math.abs(dc))*Math.pow(Math.sin(Math.PI*t),2)*Math.sin(2*Math.PI*t+ph);
+      // and it is born from its parent's own centreline, wherever that has wandered, easing onto its own course: so it always rises out of the parent water
+      const par=CH[ch.from||'one'], pr=par&&par!==ch?chAt(par,yr):null; if(pr){ own=sm(Math.min(1,t*2.5)); c=pr[0]+(c-pr[0])*own; }
+    } else { const m=wTan(k), t2=t*t, t3=t2*t;
+      w=(2*t3-3*t2+1)*k[i][2]+(t3-2*t2+t)*h*m[i]+(-2*t3+3*t2)*k[i+1][2]+(t3-t2)*h*m[i+1]; }
+    if(lod>0&&w>0){ const u=y2u(yr); c+=own*lod*.006*Math.sin(u*Math.PI*53+ph*2.7)*Math.sin(u*Math.PI*11+ph); } // and each church a little on its own (a newborn church takes its parent's, already in pr)
+    return [c, Math.max(0,w)*swell]; } }
   return [k[k.length-1][1],k[k.length-1][2]];
 }
-const mea = u => .028*Math.sin(u*Math.PI*5.3+.6) + .012*Math.sin(u*Math.PI*13+1.3);
+const mea = u => .028*Math.sin(u*Math.PI*5.3+.6) + .012*Math.sin(u*Math.PI*13+1.3) + (lod>0? lod*(.011*Math.sin(u*Math.PI*37+2.1) + .006*Math.sin(u*Math.PI*83+.4)) : 0);
 
 /* era vertical extents for the descent */
 ERAS.forEach(e=>{
@@ -999,8 +1032,10 @@ function fitLabels(){
 let Wd=0,Hd=0,dpr=1;
 /* from the Reformation on, many channels run side by side, so the era's river band is given extra height (RD px) and the heading moves down with it */
 let RD=0; const bandFor=i=>ERAS[i].a>=1517?Math.round(Math.max(0,Math.min(220,innerHeight*.5-256))):0;
+/* the whole river runs a little past today, where it reaches the sea */
+const HOME_U1=1.02;
 function resolve(spec){
-  if(spec.kind==='home') return {u0:-.012,u1:1.0,y0:HOMEY[0],y1:HOMEY[1],top:Wd<680?72:118,bottom:Hd-(Wd<680?250:Math.max(120,Hd*.15))};
+  if(spec.kind==='home') return {u0:-.012,u1:HOME_U1,y0:HOMEY[0],y1:HOMEY[1],top:Wd<680?72:118,bottom:Hd-(Wd<680?250:Math.max(120,Hd*.15))};
   const e=ERAS[spec.i], pad=(e.u1-e.u0)*.07;
   return {u0:e.u0-pad,u1:e.u1+pad,y0:e.y0,y1:e.y1,top:34,bottom:Math.min(Hd+22,446+RD)-156};
 }
@@ -1028,6 +1063,7 @@ let cvW=0, cvH=0, cvD=0;
 function size(){
   const r=inner.getBoundingClientRect(); dpr=Math.min(2,window.devicePixelRatio||1);
   Wd=r.width; Hd=r.height;
+  { const k=Wd<680?.45:1; if(k!==swellK){ swellK=k; wKey=tKey=''; } }
   // the stage height animates during the descent; the bitmap is sized once for the tallest state so it is not reallocated every frame
   const need=Math.max(Hd, window.innerHeight, 540);
   if(Wd!==cvW || need>cvH || dpr!==cvD){ cvW=Wd; cvH=need; cvD=dpr; for(const c of riverLayers){ c.width=Math.round(Wd*dpr); c.height=Math.round(cvH*dpr); c.style.height=cvH+'px'; } wKey=tKey=''; ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -1037,19 +1073,112 @@ function size(){
 new ResizeObserver(size).observe(inner); window.addEventListener('resize',size); size();
 view=resolve({kind:'home'});
 
-/* ---------- Particles ---------- */
+/* ---------- The flow ----------
+   The river is one water from Pentecost. A streak never appears inside a church out of nothing and never vanishes at a fork: at 1054 the undivided
+   church's water runs on into West and East, whichever side it is on; where a church rises out of another, the water on that side peels off into it;
+   and at today every church runs out past its mouth into the sea. Nothing ever flows into the dry lines of the departures.
+   Streaks move a set distance along their own channel, so a steep branch does not rush, and run fastest over the deep channel and slowest at the banks.
+   Gold is the gospel. It is not scattered at random: Pentecost gives it, each creed and confession adds to its own church, a church that rises out of
+   another carries what was in its parent's water, it crosses the drawn ties where one confession was adapted from another, and in the seasons the key
+   names as recoveries it is added all the while. Downstream it thins over a century or two unless it is given again, but it never runs dry.
+   And every third ring of the spring sends one gold thread down the whole river: it rides the deep water, chooses a branch at each fork by that
+   church's share of the water, brightens as it passes a confession, and runs out into the sea. */
 const P=[]; const NP=reduce?120:460;
 function pickChannel(yr){
   let tot=0; const o=[];
   for(const id of ORDER){ const r=chAt(CH[id],yr); if(r&&r[1]>.004){ const wt=r[1]*(CH[id].fade||1); o.push([id,wt]); tot+=wt; } }
   if(!o.length) return null; let x=Math.random()*tot; for(const [id,wt] of o){ if((x-=wt)<=0) return id; } return o[o.length-1][0];
 }
+// how much gold is in a church's water in a given year, 0 to 1 (built on first use: the creeds and ties are set out further down)
+let GOLD=null;
+function goldAt(id,yr){ if(!GOLD) GOLD=buildGold(); const a=GOLD[id]; if(!a) return 0; return a[Math.max(0,Math.min(a.length-1,Math.round(yr/2)))]; }
+function buildGold(){
+  const TAU=90, N=1016, G={}, ramp=d=>Math.min(1,d/6), dose=d=>d<0?0:ramp(d)*Math.exp(-d/TAU);
+  const par=id=>id==='west'?['one',1054]:(CH[id].k[0][2]===0?[CH[id].from||'one',CH[id].k[0][0]]:null);
+  const get=id=>{ if(G[id]) return G[id]; const a=new Float32Array(N), y0=CH[id].k[0][0], p=par(id);
+    const inh=p?get(p[0])[Math.round(p[1]/2)]:0, ties=TIES.filter(t=>t[2]===id).map(t=>[t[0],get(t[1])[Math.round(t[0]/2)]]);
+    for(let i=0;i<N;i++){ const yr=i*2; if(yr<y0-1) continue; let d=0;
+      if(id==='one'&&yr>=30) d+=.6*Math.exp(-(yr-30)/150);                       // Pentecost gives it first
+      if(p) d+=inh*Math.exp(-Math.max(0,yr-p[1])/TAU);                        // a new church carries its parent's water
+      for(const c of CONFESSIONS) if(c[2]===id) d+=dose(yr-c[0]);              // each confession adds to its own church
+      for(const [t,v] of ties) d+=.9*v*dose(yr-t);                             // and crosses the tie to the church that adapted it
+      for(const [a,b,,chs] of RECOVERIES) if(chs.includes(id)){ if(yr>=a&&yr<=b) d+=.7*ramp(yr-a); else if(yr>b) d+=.7*Math.exp(-(yr-b)/TAU); }
+      a[i]=Math.min(1,d); }
+    return G[id]=a; };
+  for(const id of ORDER) get(id); return G; }
 function spawn(p){
   const u=view.u0+Math.random()*(view.u1-view.u0), yr=u2y(u), id=pickChannel(yr);
-  p.ok=!!id; if(!id) return; p.ch=id; p.u=u; p.lat=(Math.random()*2-1)*.88; p.ph=Math.random()*6.283; p.max=2.2+Math.random()*3.6; p.life=reduce?p.max*(.3+.4*Math.random()):0; /* under reduced motion the streaks hold still, so each is placed mid-life and fully visible */ p.gold=Math.random()<(showGT?(inRecovery(id,u2y(u))?.42:.22):.04);
+  p.ok=!!id; p.sea=null; p.tie=null; p.off=0; p.prev=null; if(!id) return; p.ch=id; p.u=u; p.lat=(Math.random()*2-1)*.88; p.ph=Math.random()*6.283; p.max=2.2+Math.random()*3.6;
+  p.life=reduce?p.max*(.3+.4*Math.random()):(p.first?Math.random()*p.max:0); p.first=false; /* under reduced motion the streaks hold still, so each is placed mid-life and fully visible */
+  const g=showGT?goldAt(id,yr):0; p.gold=Math.random()<(showGT?.025+.4*g:.04); p.gw=1.4+.9*g;
 }
-for(let i=0;i<NP;i++){ const p={}; spawn(p); p.life=Math.random()*p.max; P.push(p); }
+for(let i=0;i<NP;i++) P.push({ok:false,first:true}); // laid on the first frame, once the river's view is known
 let nP=NP; // streaks drawn each frame; a slow machine is given fewer (see paint)
+const EM=[], TR=[], RIP=[], EMB=[]; let trBeat=-1;           // gold given at the confessions, the gold threads, rings on the water, each confession's last gift
+const TH={}, FH=[];                                           // the deep channel's place in each church, and the heads of the sand spits, laid with the water
+const BORN=ORDER.filter(id=>CH[id].k[0][2]===0).map(id=>({id,a:CH[id].k[0][0],b:CH[id].k[1][0],p:CH[id].from||'one'})); // (a church born with no named parent rose from the undivided church, before 1054)
+function thAt(id,u){ const t=TH[id]; if(!t) return 0; const n=t.th.length-1, f=(u-t.ua)/(t.ub-t.ua)*n; if(!(f>=0&&f<=n)) return 0; const i=Math.floor(f), j=Math.min(n,i+1); return t.th[i]+(t.th[j]-t.th[i])*(f-i); }
+// a streak passed to another church's water keeps its place on the page and eases into its new lane, and its tail stays in the water it came from
+function handTo(p,id,yr){ const a=chAt(CH[p.ch],yr), b=chAt(CH[id],yr); if(!b) return false;
+  const y=a?a[0]+p.lat*a[1]/2+p.off:b[0]+p.off, hw=Math.max(b[1]/2,1e-4);
+  p.prev=p.ch; p.prevLat=p.lat; p.prevOff=p.off; p.swU=p.u;
+  p.lat=Math.max(-.85,Math.min(.85,(y-b[0])/hw)); p.off=y-(b[0]+p.lat*hw); p.ch=id; return true; }
+function moveOn(p,du,dt,kind){
+  const y0=u2y(p.u); p.u+=du; const y1=u2y(p.u), k=CH[p.ch].k, end=k[k.length-1][0];
+  if(y1>end){ if(end>=2025.9) return 'sea';
+    // the undivided church runs on into West and East: a streak goes on in whichever water it is in
+    const me=chAt(CH[p.ch],end), y=me?me[0]+p.lat*me[1]/2+p.off:0; let best=null, bd=1e9;
+    for(const id of ORDER){ if(id===p.ch) continue; const own=id==='west'&&p.ch==='one'||(CH[id].k[0][2]===0&&(CH[id].from||'one')===p.ch); if(!own) continue;
+      const r=chAt(CH[id],end); if(!r||r[1]<.01) continue; const d=Math.abs(y-r[0])-(Math.abs(y-r[0])<r[1]/2?1:0); if(d<bd){ bd=d; best=id; } }
+    if(!best) return null; handTo(p,best,end); return 'ok'; }
+  // a church rising out of this one: streaks in its water go with it; a thread chooses once, by the new church's share of the water
+  for(const b of BORN){ if(b.p!==p.ch||y1<b.a) continue;
+    if(kind==='t'){ const at=b.a+(b.b-b.a)*.12; if(y0<at&&y1>=at){ const wc=CH[b.id].k[1][2], pr=chAt(CH[p.ch],b.b), wp=pr?pr[1]:.15; if(Math.random()<wc/(wc+wp)) p.fork=b.id; }
+      // a thread that has chosen a new church crosses into it only once it is in that church's water, so it never leaves the water to get there
+      if(p.fork===b.id){ const r=chAt(CH[b.id],y1), me=chAt(CH[p.ch],y1); if(y1>b.b) p.fork=null; else if(r&&me&&Math.abs(me[0]+p.lat*me[1]/2+p.off-r[0])<r[1]*.4){ handTo(p,b.id,y1); p.fork=null; } else if(r&&me) p.lat+=Math.sign(r[0]-me[0]-p.lat*me[1]/2)*Math.min(.08,Math.abs(r[0]-me[0])/Math.max(me[1]/2,1e-4)); }
+      continue; }
+    if(y1<b.a||y1>b.b) continue; const r=chAt(CH[b.id],y1), me=chAt(CH[p.ch],y1); if(!r||!me||r[1]<.003) continue;
+    if(Math.abs(me[0]+p.lat*me[1]/2+p.off-r[0])<r[1]*.45&&Math.random()<dt*2.2) handTo(p,b.id,y1); }
+  // gold crosses the ties: Savoy took Westminster for the Congregational churches, the Second London took both for the Particular Baptists
+  if(p.gold) for(const [t,a,b] of TIES) if(p.ch===a&&y0<t&&y1>=t&&Math.random()<.5){ p.u=y2u(t); p.tie={T:t,a,b,t:0}; break; } // it goes down the drawn tie (see tieStep)
+  return 'ok'; }
+function toSea(p,v,kind){ const xe=X(1); if(xe>Wd+20) return false; const r=chAt(CH[p.ch],2026)||[0,0], m=mea(1);
+  p.sea={x:xe, y:Yp(r[0]+m+p.lat*r[1]/2+p.off), cy:Yp(r[0]+m), vx:Math.max(28,v/(view.u1-view.u0)*Wd), t:0};
+  if(kind==='t') RIP.push({x:xe+4,y:p.sea.y,t:0,R:30,d:2.6}); return true; }
+// in the sea a streak slows, spreads from its river's mouth and fades
+function seaStep(p,dt){ const s=p.sea; s.t+=dt; s.x+=s.vx*dt; s.vx*=Math.exp(-dt*1.3); s.y+=(s.y-s.cy)*dt*.8; if(s.t>1.7) return null;
+  const len=Math.max(2,s.vx*.16); return [[s.x,s.y],[s.x-len*.5,s.y],[s.x-len,s.y]]; }
+// one step of one streak: its streamline, head first, or null when it is done
+// gold crossing a tie runs down the gold tie itself, the same curve drawTies lays from one strand's centre to the other's, then flows on from the new church's centre
+function tieCurve(T,a,b){ const u=y2u(T), x=X(u), ra=chAt(CH[a],T), rb=chAt(CH[b],T); if(!ra||!rb) return null; const y1=Yp(ra[0]+mea(u)), y2=Yp(rb[0]+mea(u));
+  return t=>{ const m=1-t, P1=[x+4,y1+(y2-y1)*.33], P2=[x-4,y1+(y2-y1)*.66]; return [m*m*m*x+3*m*m*t*P1[0]+3*m*t*t*P2[0]+t*t*t*x, m*m*m*y1+3*m*m*t*P1[1]+3*m*t*t*P2[1]+t*t*t*y2]; }; }
+function tieStep(p,pdt){ const c=p.tie, B=tieCurve(c.T,c.a,c.b); if(!B) return null; c.t=Math.min(1,c.t+pdt/.55);
+  if(c.t>=1){ p.prev=c.a; p.prevLat=0; p.prevOff=0; p.swU=p.u; p.ch=c.b; p.lat=0; p.off=0; p.tie=null; p.sl=0; return [B(1),B(.9),B(.8)]; }
+  const pts=[]; for(let k=0;k<9;k++){ const t=c.t-k*.06; if(t<0) break; pts.push(B(t)); } return pts; }
+function flowStep(p,dt,span,kind){
+  const pdt=reduce?0:dt; if(p.sea) return seaStep(p,pdt); if(p.tie) return tieStep(p,pdt);
+  const ch=CH[p.ch], r0=chAt(ch,u2y(p.u)); if(!r0) return null;
+  const flow=Math.min(1.6,Math.max(.62,Math.sqrt(.12/(r0[1]+.04)))), th=ch.rank===2?0:thAt(p.ch,p.u);
+  if(kind==='t') p.lat+=(1.8*th-p.lat)*Math.min(1,pdt*.8); // the thread rides the deep water
+  const prof=kind==='t'?1:Math.max(.3,1-.55*(p.lat-2*th)*(p.lat-2*th));
+  const sl=p.sl||0; // the slope of its own streamline a frame ago
+  const v=.03*span*flow*prof*(kind==='t'?1.35:1)/Math.sqrt(1+sl*sl);
+  p.off*=Math.exp(-pdt*2.2);
+  if(pdt>0){ const st=moveOn(p,v*pdt,pdt,kind); if(!st) return null; if(st==='sea'){ if(!toSea(p,v,kind)) return null; return seaStep(p,0); } }
+  const pts=[], n=kind==='t'?30:16, tl=.09*(1+.7*lod);
+  for(let k=0;k<n;k++){ const uu=p.u-k*v*tl; let id=p.ch, lat=p.lat, off=p.off; if(p.prev&&uu<p.swU){ id=p.prev; lat=p.prevLat; off=p.prevOff; }
+    const r=chAt(CH[id],u2y(uu)); if(!r) break;
+    const l=Math.max(-.92,Math.min(.92,lat+(kind==='t'?0:.06*Math.sin(T*.5+p.ph+uu*55))));
+    pts.push([X(uu), Yp(r[0]+mea(uu)+l*r[1]/2+off)]); }
+  if(pts.length>2){ const a=pts[0], b=pts[2], dx=a[0]-b[0]; p.sl=dx>.3?(a[1]-b[1])/dx:0; }
+  return pts;
+}
+// a streamline is laid in four strokes, broad and bright at the head and thinning to its tail
+const SEG_A=[1,.7,.45,.22], SEG_W=[1.25,1,.78,.55];
+function addRuns(runs,pts,gold,lw,base){ const n=pts.length-1;
+  for(let seg=0; seg<4; seg++){ const a=(seg*n)>>2, b=((seg+1)*n)>>2; if(b<=a) continue;
+    const al=Math.round(base*SEG_A[seg]*24); if(al<=0) continue; // 24 strengths are indistinguishable from continuous ones here
+    const k=(gold?1e6:0)+Math.round(lw*SEG_W[seg]*20)*100+al; let run=runs.get(k); if(!run) runs.set(k,run=[]); run.push(pts,a,b); } }
 
 /* ---------- Drawing ---------- */
 function sample(id){
@@ -1061,6 +1190,7 @@ function sample(id){
   return pts.length>1?pts:null;
 }
 function poly(pts,m,add){ if(!add) ctx.beginPath(); for(let i=0;i<pts.length;i++){ const p=pts[i], y=Yp(p[1]-p[2]*m/2); i?ctx.lineTo(p[0],y):ctx.moveTo(p[0],y);} for(let i=pts.length-1;i>=0;i--){ const p=pts[i]; ctx.lineTo(p[0],Yp(p[1]+p[2]*m/2)); } ctx.closePath(); }
+function edgeP(path,pts,lat,px=0){ for(let i=0;i<pts.length;i++){ const p=pts[i], y=Yp(p[1]+p[2]*lat/2)+px; i?path.lineTo(p[0],y):path.moveTo(p[0],y);} }
 function edge(pts,lat,px=0){ ctx.beginPath(); for(let i=0;i<pts.length;i++){ const p=pts[i], y=Yp(p[1]+p[2]*lat/2)+px; i?ctx.lineTo(p[0],y):ctx.moveTo(p[0],y);} }
 
 function drawChannel(id,S){
@@ -1093,35 +1223,152 @@ function drawLapis(S){
     const real=ctx; ctx=wSheet.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,Wd,cvH);
     try{ paintVellum(S); paintLapis(S); } finally { ctx=real; } }
 }
+// pigment for the water: ultramarine granulates as it dries, leaving darker specks and pooled patches, and the vellum shows through in places
+let granCv=null;
+function granulation(){ if(granCv) return granCv; const n=256, c=document.createElement('canvas'); c.width=c.height=n;
+  const g=c.getContext('2d'), im=g.createImageData(n,n), d=im.data; let seed=7;
+  const rnd=()=>{ seed|=0; seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; };
+  const oct=G=>{ const v=[]; for(let i=0;i<G*G;i++) v.push(rnd()); return (x,y)=>{ const fx=x/n*G, fy=y/n*G, x0=Math.floor(fx), y0=Math.floor(fy), tx=sm(fx-x0), ty=sm(fy-y0),
+    at=(a,b)=>v[((b%G+G)%G)*G+((a%G+G)%G)]; return (at(x0,y0)*(1-tx)+at(x0+1,y0)*tx)*(1-ty)+(at(x0,y0+1)*(1-tx)+at(x0+1,y0+1)*tx)*ty; }; };
+  const o1=oct(6), o2=oct(24);
+  for(let y=0;y<n;y++) for(let x=0;x<n;x++){ const i=(y*n+x)*4, v=.65*o1(x,y)+.35*o2(x,y), r=rnd();
+    let a=Math.max(0,(v-.5))*.34, col=[22,36,98];
+    if(r<.06){ a+=.1+.16*rnd(); } else if(r<.085){ col=[250,246,234]; a=.12+.1*rnd(); }
+    d[i]=col[0]; d[i+1]=col[1]; d[i+2]=col[2]; d[i+3]=Math.round(Math.min(1,a)*255); }
+  g.putImageData(im,0,0); return granCv=c; }
+// the deep channel follows the bends: it swings to the outside of each one, as water does, with a little wandering of its own
+function thalweg(p,ph){ const n=p.length, o=new Float32Array(n), ys=p.map(q=>Yp(q[1]));
+  for(let i=1;i<n-1;i++){ const dx=Math.max(1,(p[i+1][0]-p[i-1][0])/2), c=(ys[i-1]-2*ys[i]+ys[i+1])/(dx*dx); o[i]=Math.max(-.14,Math.min(.14,-c*50)); }
+  o[0]=o[1]||0; if(n>1) o[n-1]=o[n-2];
+  const s=new Float32Array(n), R=4; for(let i=0;i<n;i++){ let a=0,c=0; for(let j=Math.max(0,i-R);j<=Math.min(n-1,i+R);j++){ a+=o[j]; c++; } s[i]=a/c; }
+  return p.map((q,i)=>{ const u=xToU(q[0]); return Math.max(-.15,Math.min(.15, s[i] + .05*Math.sin(u*19+ph))); }); }
+const parentAt=(id,yr)=>CH[id].from||(chAt(CH.one,yr)?'one':'west');
 function paintLapis(S){
+  for(const k in TH) delete TH[k]; FH.length=0;
   const groups=new Map();
   for(const id of ORDER){ const pts=sample(id); if(!pts) continue; const f=CH[id].fade||1; if(!groups.has(f)) groups.set(f,[]); groups.get(f).push([id,pts]); }
+  const ppu=(view.bottom-view.top)/(view.y1-view.y0);
+  // pts with each half-width grown by px screen pixels, for a stroke of wet edge that hugs the bank instead of a pale halo outside it
+  const grow=(p,px)=>p.map(q=>[q[0],q[1],q[2]>0?q[2]+2*px/ppu/.9:0]);
+  paintSea(S,'fill');
   for(const [f,list] of groups){
-    ctx.fillStyle=`rgba(${S.wash},${.16*f})`; ctx.beginPath(); for(const [,p] of list) poly(p,1.08,1); ctx.fill('nonzero');
-    ctx.fillStyle=`rgba(${S.wash},${.30*f})`; ctx.beginPath(); for(const [,p] of list) poly(p,.9,1); ctx.fill('nonzero');
-    ctx.fillStyle=`rgba(${S.deep},${.30*f})`; ctx.beginPath();
+    ctx.fillStyle=`rgba(${S.wash},${.10*f})`; ctx.beginPath(); for(const [,p] of list) poly(grow(p,1.4),.9,1); ctx.fill('nonzero');
+    ctx.fillStyle=`rgba(${S.wash},${.37*f})`; ctx.beginPath(); for(const [,p] of list) poly(p,.9,1); ctx.fill('nonzero');
     // a branch's deep channel opens only once it has left the parent water, so no dark thread runs through the trunk
-    for(const [id,p] of list){ if(CH[id].rank===2) continue; const ph=CH[id].ph||0, br=CH[id].k[0][2]===0;
-      poly(p.map(q=>{ const o=.22*Math.sin(q[0]*.012+ph); let w=q[2]*.42;
+    const deeps=[];
+    for(const [id,p] of list){ if(CH[id].rank===2) continue; const ph=CH[id].ph||0, br=CH[id].k[0][2]===0, th=thalweg(p,ph); TH[id]={ua:xToU(p[0][0]),ub:xToU(p[p.length-1][0]),th}; // the streaks run fastest over it
+      deeps.push(p.map((q,qi)=>{ let w=q[2];
         if(br){ const uu=xToU(q[0]), yr=u2y(uu); for(const id2 of ORDER){ if(id2===id||(CH[id2].k[0][2]===0&&id2!==CH[id].from)) continue; const r=chAt(CH[id2],yr); if(!r) continue;
           const d=Math.abs(q[1]-(r[0]+mea(uu)))/(r[1]/2+q[2]/2); w*=sm(Math.min(1,Math.max(0,(d-.55)/.45))); } }
-        return [q[0], q[1]+q[2]*o, w]; }),1,1); }
-    ctx.fill('nonzero');
+        return [q[0], q[1]+q[2]*th[qi], w]; })); }
+    // the deep water is laid in two strokes of the brush, a broad soft one and a narrower one inside it, so it shades rather than stripes
+    ctx.fillStyle=`rgba(${S.deep},${.12*f})`; ctx.beginPath(); for(const d of deeps) poly(d,.52,1); ctx.fill('nonzero');
+    ctx.fillStyle=`rgba(${S.deep},${.17*f})`; ctx.beginPath(); for(const d of deeps) poly(d,.26,1); ctx.fill('nonzero');
   }
-  // a branch's banks are drawn in gradually, so a new church emerges from the water rather than being cut into it.
-  // Where two churches still share the water, neither bank is drawn across it: all banks go on a scratch sheet, every church's water is wiped from it
-  // in one fill, and the rest is laid on the river. (A stacked clip per neighbour per church made a zoom several times slower.) Each church's water is
-  // wiped a little inside its own banks, by at least the width of the line, so it never takes its own bank with it.
-  const real=ctx; ctx=bankSheet(); ctx.clearRect(0,0,Wd,cvH); ctx.lineWidth=.8;
-  const ppu=(view.bottom-view.top)/(view.y1-view.y0);
+  // the pigment's grain over all the water at once
+  try{ const pat=ctx.createPattern(granulation(),'repeat'); if(pat.setTransform) pat.setTransform(new DOMMatrix().scale(1/dpr));
+    ctx.fillStyle=pat; ctx.beginPath(); for(const [,list] of groups) for(const [,p] of list) poly(p,.9,1); ctx.fill('nonzero'); }catch(e){}
+  paintSandbars(S,ppu);
+  // Banks, and inside each bank the water-lining of an engraved chart: fine lines following the shore, each a little further from the last and fainter.
+  // A branch's banks are drawn in gradually, so a new church emerges from the water rather than being cut into it.
+  // Where two churches still share the water, neither bank is drawn across it: all lines go on a scratch sheet, every church's water is wiped from it
+  // in one fill, and the rest is laid on the river. Each church's water is wiped only from inside its own water-lining, so its own lines stay.
+  const WL=[[2.6,.62,.7],[5.6,.4,.6],[9.8,.24,.55]];
+  const real=ctx; ctx=bankSheet(); ctx.clearRect(0,0,Wd,cvH);
+  // lines of the same strength are gathered into one stroke; only a newly born church, whose lines fade in, is stroked on its own
+  const batch=new Map(), add=(key,style,lw)=>{ let b=batch.get(key); if(!b) batch.set(key,b={path:new Path2D(),style,lw}); return b.path; };
   for(const [f,list] of groups){
-    for(const [id,p] of list){ const k=CH[id].k, ba=(CH[id].braid?.17:.28)*f; let st=`rgba(${S.ink},${ba})`;
-      if(k[0][2]===0){ const xa=X(y2u(k[0][0])), xb=X(y2u(k[1][0])); if(xb>xa+1){ st=ctx.createLinearGradient(xa,0,xb,0); st.addColorStop(0,`rgba(${S.ink},0)`); st.addColorStop(.35,`rgba(${S.ink},0)`); st.addColorStop(1,`rgba(${S.ink},${ba})`); } }
-      ctx.strokeStyle=st; edge(p,-.9); ctx.stroke(); edge(p,.9); ctx.stroke(); } }
+    for(const [id,p] of list){ const k=CH[id].k, ba=(CH[id].braid?.2:.3)*f; const xa=X(y2u(k[0][0])), xb=X(y2u(k[1][0])), birth=k[0][2]===0&&xb>xa+1;
+      const hw=Math.max(...p.map(q=>q[2]))*ppu*.45, lines=[[0,ba,.8,S.ink]]; for(const [d,a,lw] of WL){ if(hw<d*2+3) break; lines.push([d,a*ba*1.25,lw,S.deep]); }
+      for(const [d,a,lw,col] of lines){ let path;
+        if(birth){ path=new Path2D(); } else path=add(col+'|'+a.toFixed(3)+'|'+lw,`rgba(${col},${a})`,lw);
+        edgeP(path,p,-.9,d); edgeP(path,p,.9,-d);
+        if(birth){ const g=ctx.createLinearGradient(xa,0,xb,0); g.addColorStop(0,`rgba(${col},0)`); g.addColorStop(.35,`rgba(${col},0)`); g.addColorStop(1,`rgba(${col},${a})`); ctx.lineWidth=lw; ctx.strokeStyle=g; ctx.stroke(path); } } } }
+  for(const b of batch.values()){ ctx.lineWidth=b.lw; ctx.strokeStyle=b.style; ctx.stroke(b.path); }
+  if(showGT) paintGospel(S);
   ctx.globalCompositeOperation='destination-out'; ctx.beginPath();
-  for(const [f,list] of groups) for(const [,p] of list) poly(p.map(q=>{ const w=q[2]*ppu; return [q[0],q[1],w>0?q[2]*Math.max(0,Math.min(.84,.9-1.1/w))/.84:0]; }),.84,1);
+  for(const [,list] of groups) for(const [,p] of list) poly(p.map(q=>{ const w=q[2]*ppu, keep=Math.min(WL[WL.length-1][0]+1.4, Math.max(.55,(w*.45-3)/2.2)); return [q[0],q[1],w>0?Math.max(0,(w*.9-2*keep)/ppu):0]; }),1,1);
   ctx.fill('nonzero'); ctx.globalCompositeOperation='source-over';
   const sc=ctx.canvas; ctx=real; ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.drawImage(sc,0,0); ctx.restore();
+  paintSea(S,'lines');
+}
+// where a branch leaves its parent, a spit of sand runs down between them for a little way before the land closes in
+function paintSandbars(S,ppu){
+  for(const id of ORDER){ const ch=CH[id], k=ch.k; if(k[0][2]!==0||ch.rank===2) continue;
+    // the year the two banks part does not depend on the view, so it is found once
+    const ck='ym'+swellK; if(!(ck in ch)){ ch[ck]=null; for(let yr=k[0][0]+1; yr<=k[1][0]; yr+=1){ const pid=parentAt(id,yr), a=chAt(ch,yr), b=chAt(CH[pid],yr); if(!a||!b) continue;
+      if(Math.abs(a[0]-b[0])-(a[1]+b[1])*.45>0){ ch[ck]=yr; break; } } }
+    const ym=ch[ck];
+    if(ym===null) continue; const xm=X(y2u(ym)); if(xm<-80||xm>Wd+10) continue;
+    let ye=ym; while(ye<k[k.length-1][0]&&X(y2u(ye))-xm<46){ const pid=parentAt(id,ye), a=chAt(ch,ye), b=chAt(CH[pid],ye); if(!a||!b||(Math.abs(a[0]-b[0])-(a[1]+b[1])*.45)*ppu>12) break; ye+=.5; }
+    const up=[], lo=[]; const n=18;
+    for(let i=0;i<=n;i++){ const yr=ym+(ye-ym)*i/n, u=y2u(yr), pid=parentAt(id,yr), a=chAt(ch,yr), b=chAt(CH[pid],yr); if(!a||!b) continue;
+      const [hi,lw]=a[0]<b[0]?[a,b]:[b,a], x=X(u), m=mea(u); up.push([x,Yp(hi[0]+m+hi[1]*.45)]); lo.push([x,Yp(lw[0]+m-lw[1]*.45)]); }
+    if(up.length<3) continue;
+    FH.push({x:xm,y:(up[0][1]+lo[0][1])/2}); // where the water parts round the spit's head, it turns (see paint)
+    const g=ctx.createLinearGradient(xm,0,X(y2u(ye)),0); g.addColorStop(0,'rgba(214,190,130,.42)'); g.addColorStop(.45,'rgba(222,203,150,.24)'); g.addColorStop(1,'rgba(222,203,150,0)');
+    ctx.fillStyle=g; ctx.beginPath(); up.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])); for(let i=lo.length-1;i>=0;i--) ctx.lineTo(lo[i][0],lo[i][1]); ctx.closePath(); ctx.fill();
+    // a few stipples of sand at the head of the spit
+    ctx.fillStyle='rgba(150,118,62,.45)'; let s=id.length*7;
+    for(let i=0;i<14;i++){ s=(s*9301+49297)%233280; const t=s/233280; s=(s*9301+49297)%233280; const v=s/233280; const j=Math.min(up.length-1,Math.floor(t*t*up.length*.7));
+      const y=up[j][1]+(lo[j][1]-up[j][1])*(.25+.5*v); if(lo[j][1]-up[j][1]<3) continue; ctx.fillRect(up[j][0]+t*3,y,.9,.9); }
+  }
+}
+/* The river comes to the sea. Today is the shore: each church's water runs out between low tongues of land into the sea, and the sea is gilded faintly —
+   "the earth shall be filled with the knowledge of the glory of the LORD, as the waters cover the sea" (Habakkuk 2:14). On the whole river it meets the
+   bay the land draws at the foot, so the sea is one sea. The tongues are drawn as an engraved chart draws a coast: an inked shore and, outside it,
+   fine lines of water following it, each a little further out and fainter. */
+function seaMouths(){ const out=[]; for(const id of ORDER){ const r=chAt(CH[id],2026); if(!r||r[1]<.004) continue; const m=mea(1); out.push([Yp(r[0]+m-r[1]*.45),Yp(r[0]+m+r[1]*.45)]); }
+  out.sort((p,q)=>p[0]-q[0]); const mm=[]; for(const m of out){ const l=mm[mm.length-1]; if(l&&m[0]<=l[1]+3) l[1]=Math.max(l[1],m[1]); else mm.push([m[0],m[1]]); } return mm; }
+// the bay the land draws at the foot of the whole river, in the land's own terms, so the sea at today and the bay are one water with one coast
+function bayGeo(){ const {P}=landMap(), lg0=document.querySelector('.corner .legend'), ir=inner.getBoundingClientRect();
+  const st=lg0&&lg0.offsetWidth&&inkRect(lg0).left-ir.left>Wd*.5?inkRect(lg0).bottom-ir.top+10:-1e9, sb=Hd-30, Q=(x,y)=>{ const p=P(x,y); return [p[0],Math.min(Math.max(p[1],st),sb)]; }, f=n=>n.toFixed(1);
+  const c=[[1146,872],[1150,852],[1160,838],[1196,828],[1300,820],[1340,812],[1420,804],[1440,800]].map(p=>Q(p[0],p[1]));
+  const coast=`M${f(c[0][0])} ${f(c[0][1])}C${f(c[1][0])} ${f(c[1][1])} ${f(c[2][0])} ${f(c[2][1])} ${f(c[3][0])} ${f(c[3][1])}S${f(c[4][0])} ${f(c[4][1])} ${f(c[5][0])} ${f(c[5][1])} ${f(c[6][0])} ${f(c[6][1])} ${f(Wd)} ${f(c[7][1])}`;
+  return {coast, body:coast+`V${sb}Z`, top:Math.min(...c.map(q=>q[1])), yJ:c[7][1], x0:c[0][0], sb}; }
+function seaGeo(){ const xe=X(1), y0=Math.max(0,view.top-46), home=mode==='home'&&eraFade<.5, bay=home&&landReady&&landWide()?bayGeo():null;
+  let yb=Math.min(cvH,view.bottom+(home?40:16)), yf=view.bottom-(home?0:30); if(bay&&bay.yJ>view.top+40){ yb=bay.yJ; yf=yb; }
+  const mm=seaMouths(), T=[]; let prev=y0; for(const [a,b] of mm){ if(a>prev) T.push([prev,a]); prev=b; } if(yb>prev) T.push([prev,yb]);
+  const wav=y=>2.4*Math.sin(y*.031+1.1)+1.4*Math.sin(y*.083+.3);
+  const prof=(t,y)=>{ const [a,b]=t; if(a<=y0+.5) return sm(Math.min(1,(b-y)/36)); if(b>=yb-.5&&!bay) return sm(Math.min(1,(y-a)/36)); return Math.pow(Math.sin(Math.PI*(y-a)/(b-a)),.6); };
+  const bulge=t=>{ const [a,b]=t; return (a<=y0+.5||(b>=yb-.5&&!bay))?14:Math.min(15,(b-a)*.55); };
+  const sx=y=>{ for(const t of T) if(y>=t[0]&&y<=t[1]){ const p=prof(t,y); return xe+(bulge(t)+wav(y))*p; } return xe; };
+  return {xe,y0,yb,yf,mm,T,sx,prof,bulge,bay}; }
+function paintSea(S,pass){
+  const G=seaGeo(), {xe,y0,yb,yf,mm,T,sx,bay}=G; if(xe>Wd+30) return;
+  if(pass==='fill'){
+    ctx.save(); ctx.beginPath(); ctx.moveTo(sx(y0),y0); for(let y=y0+2;y<=yb;y+=2) ctx.lineTo(sx(y),y); ctx.lineTo(sx(yb),yb); ctx.lineTo(Wd+4,yb); ctx.lineTo(Wd+4,y0); ctx.closePath(); ctx.clip();
+    const sea='201,211,228', H=Math.max(1,yb-y0), g=ctx.createLinearGradient(0,y0,0,yb);
+    g.addColorStop(0,`rgba(${sea},0)`); g.addColorStop(Math.min(1,46/H),`rgba(${sea},.62)`); g.addColorStop(Math.max(Math.min(1,46/H),Math.min(1,(yf-y0)/H)),`rgba(${sea},.62)`); g.addColorStop(1,`rgba(${sea},0)`);
+    ctx.fillStyle=g; ctx.fillRect(xe-2,y0,Wd-xe+8,yb-y0);
+    const gg=ctx.createLinearGradient(xe,0,Wd+4,0); gg.addColorStop(0,`rgba(${S.glow||S.gold},0)`); gg.addColorStop(1,`rgba(${S.glow||S.gold},.3)`); /* a warm light on the water, not a dull wash */ ctx.fillStyle=gg; ctx.fillRect(xe,y0+40,Wd-xe+4,Math.max(0,yf-y0-40));
+    // each church's water runs on past its mouth and spreads, softly, into the sea
+    // (three thin washes, each spreading a little wider, so the plume's edge is soft without a blur)
+    for(const [a,b] of mm){ const c=(a+b)/2, L=Math.min(42,(Wd-xe)+16);
+      for(const k of [.86,1,1.16]){ const h=(b-a)/2*k; const pg=ctx.createLinearGradient(xe,0,xe+L,0); pg.addColorStop(0,`rgba(${S.wash},.12)`); pg.addColorStop(1,`rgba(${S.wash},0)`); ctx.fillStyle=pg;
+        ctx.beginPath(); ctx.moveTo(xe-1,c-h); ctx.bezierCurveTo(xe+L*.4,c-h,xe+L*.7,c-h*1.3,xe+L,c-h*1.35); ctx.lineTo(xe+L,c+h*1.35); ctx.bezierCurveTo(xe+L*.7,c+h*1.3,xe+L*.4,c+h,xe-1,c+h); ctx.closePath(); ctx.fill(); } }
+    ctx.restore();
+    if(bay){ const bp=new Path2D(bay.body), g2=ctx.createLinearGradient(0,bay.top,0,bay.sb); g2.addColorStop(0,'rgba(201,211,228,.62)'); g2.addColorStop(Math.max(0,1-12/Math.max(1,bay.sb-bay.top)),'rgba(201,211,228,.62)'); g2.addColorStop(1,'rgba(201,211,228,0)');
+      ctx.fillStyle=g2; ctx.fill(bp); }
+    return; }
+  ctx.save(); const H=Math.max(1,yb-y0);
+  const fade=(col,a)=>{ const sg=ctx.createLinearGradient(0,y0,0,yb); sg.addColorStop(0,`rgba(${col},0)`); sg.addColorStop(Math.min(1,46/H),`rgba(${col},${a})`); sg.addColorStop(Math.max(Math.min(1,46/H),Math.min(1,(yf-y0)/H)),`rgba(${col},${a})`); sg.addColorStop(1,`rgba(${col},0)`); return sg; };
+  for(const t of T){ const [a,b]=t, top=a<=y0+.5, bot=b>=yb-.5;
+    for(const [d,al,lw] of [[0,.55,1],[3.2,.42,.75],[6.8,.3,.7],[11.4,.19,.65],[17.4,.1,.6]]){
+      const ya=top?a:a+d*.85, yz=bot?b:b-d*.85; if(yz-ya<4) continue;
+      ctx.beginPath(); for(let y=ya;y<=yz;y+=2){ const x=sx(y)+d; y===ya?ctx.moveTo(x,y):ctx.lineTo(x,y); } ctx.lineTo(sx(yz)+d,yz);
+      ctx.lineWidth=lw; ctx.strokeStyle=fade(d?S.deep:S.ink,al); ctx.stroke(); } }
+  if(bay){ const cp=new Path2D(bay.coast), bp=new Path2D(bay.body);
+    ctx.lineWidth=1; ctx.strokeStyle=`rgba(${S.ink},.55)`; ctx.stroke(cp);
+    ctx.save(); ctx.clip(bp); for(const [d,al,lw] of [[3.2,.42,.75],[6.8,.3,.7],[11.4,.19,.65],[17.4,.1,.6]]){ ctx.save(); ctx.translate(0,d); ctx.lineWidth=lw; ctx.strokeStyle=`rgba(${S.deep},${al})`; ctx.stroke(cp); ctx.restore(); } ctx.restore();
+    ctx.lineCap='round'; let s2=5; for(let i=0;i<14;i++){ s2=(s2*9301+49297)%233280; const t=s2/233280; s2=(s2*9301+49297)%233280; const v=s2/233280;
+      const x=bay.x0+30+t*(Wd-bay.x0-40), y=bay.top+20+v*(bay.sb-bay.top-26); if(!ctx.isPointInPath(bp,x*dpr,(y-8)*dpr)) continue;
+      ctx.strokeStyle=`rgba(${S.fleck},${.3+.3*t})`; ctx.lineWidth=1.1; ctx.beginPath(); ctx.moveTo(x-3-3*t,y); ctx.quadraticCurveTo(x,y-1.4,x+3+3*t,y); ctx.stroke(); } }
+  // light on the open water: a few gilded ripples
+  ctx.lineCap='round'; let s=11; for(let i=0;i<26;i++){ s=(s*9301+49297)%233280; const t=s/233280; s=(s*9301+49297)%233280; const v=s/233280;
+    const y=y0+50+v*(yf-y0-60), x=sx(y)+14+t*Math.max(0,Wd-sx(y)-18); if(x>Wd-4) continue; ctx.strokeStyle=`rgba(${S.fleck},${.3+.3*t})`; ctx.lineWidth=1.1;
+    ctx.beginPath(); ctx.moveTo(x-3-3*t,y); ctx.quadraticCurveTo(x,y-1.4,x+3+3*t,y); ctx.stroke(); }
+  ctx.restore();
 }
 const bankC=document.createElement('canvas');
 function bankSheet(){ if(bankC.width!==wSheet.width||bankC.height!==wSheet.height){ bankC.width=wSheet.width; bankC.height=wSheet.height; } const c=bankC.getContext('2d'); c.setTransform(dpr,0,0,dpr,0,0); return c; }
@@ -1143,17 +1390,31 @@ function drawSpring(S){
 /* Gospel layer: gold carried in every channel; recoveries brighten across every church they touched; creeds and confessions gilded on the water */
 const CONFESSIONS=[[325,'Nicene Creed','one'],[451,'Definition of Chalcedon','one'],[1530,'Augsburg Confession','lutheran'],[1561,'Belgic Confession','reformed'],[1563,'Heidelberg Catechism','reformed'],[1571,'Thirty-Nine Articles','anglican'],[1577,'Formula of Concord','lutheran'],[1619,'Canons of Dort','reformed'],[1644,'First London Confession','partbaptist'],[1646,'Westminster Confession','reformed'],[1658,'Savoy Declaration','congregational'],[1689,'Second London Confession','partbaptist'],[1784,'Methodist Articles of Religion','methodist'],[1974,'Lausanne Covenant','anglican']];
 function inRecovery(id,yr){ for(const r of RECOVERIES) if(yr>=r[0]&&yr<=r[1]&&r[3].includes(id)) return true; return false; }
-function drawGospel(S){
-  const pulse=.8+.2*Math.sin(T*1.1);
+/* The gold edges are laid with the banks, once for each view, on the same scratch sheet: a gold edge appears only once its church is a few pixels wide
+   and has drawn clear of its parent, and the wipe that keeps banks out of other churches' water keeps the gold out too, so a newly parted church is
+   not drawn as a bundle of gilt wires. (Laid once, the gold no longer breathes; a sheet of its own redrawn each frame cost more than it gave.) */
+function drawGospel(S){}
+function paintGospel(S){
+  const ppu=(view.bottom-view.top)/(view.y1-view.y0); ctx.save();
   for(const [a,b,,chs] of RECOVERIES){
     const ua=Math.max(view.u0,y2u(a)), ub=Math.min(view.u1,y2u(b)); if(ub<=ua) continue;
     const xa=X(y2u(a)), xb=X(y2u(b));
-    const g=ctx.createLinearGradient(xa,0,xb,0); g.addColorStop(0,`rgba(${S.gold},0)`); g.addColorStop(.25,`rgba(${S.gold},${.7*pulse})`); g.addColorStop(.75,`rgba(${S.gold},${.7*pulse})`); g.addColorStop(1,`rgba(${S.gold},0)`);
-    ctx.fillStyle=g;
-    for(const id of chs){ const pts=[]; const n=60;
+    const g=ctx.createLinearGradient(xa,0,xb,0); g.addColorStop(0,`rgba(${S.gold},0)`); g.addColorStop(.25,`rgba(${S.gold},.7)`); g.addColorStop(.75,`rgba(${S.gold},.7)`); g.addColorStop(1,`rgba(${S.gold},0)`);
+    ctx.strokeStyle=g; ctx.lineWidth=1.4; const lv=[];
+    for(const id of chs){ const pts=[]; const n=90;
       for(let i=0;i<=n;i++){ const u=ua+(ub-ua)*i/n, r=chAt(CH[id],u2y(u)); if(r) pts.push([X(u), r[0]+mea(u), r[1]*(CH[id].fade?.6:1)]); }
-      if(pts.length>1){ ctx.save(); ctx.strokeStyle=g; ctx.lineWidth=1.4; edge(pts,-1,-2.2); ctx.stroke(); edge(pts,1,2.2); ctx.stroke(); ctx.restore(); } }
+      // in short runs, each as bright as its church is wide there
+      for(let i=0;i<pts.length-1;i+=4){ const seg=pts.slice(i,Math.min(pts.length,i+5)); if(seg.length<2) break;
+        const mid=seg[Math.floor(seg.length/2)], wpx=mid[2]*ppu; let al=sm(Math.max(0,Math.min(1,(wpx-4)/10)));
+        // a newly parted church is gilded only once it has drawn clear of its parent's water
+        if(al>.02&&CH[id].k[0][2]===0){ const yr=u2y(xToU(mid[0])), pr=chAt(CH[parentAt(id,yr)],yr), me=chAt(CH[id],yr);
+          if(pr&&me){ const sep=(Math.abs(me[0]-pr[0])-(me[1]+pr[1])*.45)*ppu; al*=sm(Math.max(0,Math.min(1,(sep-2)/14))); } }
+        if(al<.02) continue;
+        const L=Math.min(8,Math.round(al*8)); if(!lv[L]) lv[L]=new Path2D(); edgeP(lv[L],seg,-.92,-2.2); edgeP(lv[L],seg,.92,2.2); } }
+    // (runs of the same brightness are stroked together)
+    lv.forEach((path,L)=>{ if(!path) return; ctx.globalAlpha=L/8; ctx.stroke(path); }); ctx.globalAlpha=1;
   }
+  ctx.restore();
 }
 /* the Reformed family's strands are tied where one confession was adapted for another polity: Savoy (1658) from Westminster, the Second London (1689) from both */
 const TIES=[[1658,'reformed','congregational'],[1689,'congregational','partbaptist']];
@@ -1287,7 +1548,7 @@ function drawChannelLabels(S){
     // inside an era, label each channel near the right of the view, stepping left when a nearer lane already holds that spot
     const inEra=mode==='era'||u2y(view.u0)>k[0][0]||u2y(view.u1)<yr;
     for(const f of (inEra?[.1,.21,.32,.43,.54,.65,.76,.87]:[0])){
-      if(inEra) yr=Math.min(k[k.length-1][0], u2y(view.u1-span*f));
+      if(inEra) yr=Math.min(k[k.length-1][0]-6, u2y(view.u1-span*f)); /* a name stays on its stream, short of the sea */
       if(yr<k[0][0]||yr>k[k.length-1][0]) continue;
       const u=y2u(yr); if(u<view.u0||u>view.u1) continue;
       const r=chAt(CH[id],yr); if(!r||r[1]<.006) continue;
@@ -1327,7 +1588,7 @@ function drawTop(S){
 function paintTop(S){
   // hover veil
   if(hv>.01 && lastHover>=0){ const e=ERAS[lastHover]; ctx.fillStyle=`rgba(${S.paper},${.5*hv})`; ctx.fillRect(0,78,X(e.u0),Hd-78); ctx.fillRect(X(e.u1),78,Wd-X(e.u1),Hd-78); }
-  { const xe=X(1); if(xe<Wd+60){ const g=ctx.createLinearGradient(X(.955),0,Math.min(Wd,xe+20),0); g.addColorStop(0,`rgba(${S.paper},0)`); g.addColorStop(1,`rgba(250,242,218,.92)`); ctx.fillStyle=g; ctx.fillRect(X(.955),0,Wd-X(.955),Hd); } }
+  // (the river no longer fades into the paper at today: it runs into the sea, drawn with the water)
   // inside an era, water above the band dissolves into the vellum, so a stream framed out runs on unseen rather than being cut
   if(eraFade>.02&&view.top>8){ const g=ctx.createLinearGradient(0,0,0,view.top+6); g.addColorStop(0,`rgba(${S.paper},${.96*eraFade})`); g.addColorStop(.55,`rgba(${S.paper},${.7*eraFade})`); g.addColorStop(1,`rgba(${S.paper},0)`); ctx.fillStyle=g; ctx.fillRect(0,0,Wd,view.top+6); }
   if(mode!=='home') drawChannelLabels(S);
@@ -1362,35 +1623,65 @@ function paint(now){
   if(!stageOn()&&!busy){ last=now; return; }
   const dt=Math.min(.05,(now-last)/1000); last=now; T+=reduce?0:dt;
   view=currentView(now);
+  // fine bends come up as the view closes in on an era (the whole river spans about 1.05 of u; an era about a tenth of that)
+  lod=sm(Math.max(0,Math.min(1,(1.046/(view.u1-view.u0)-2)/3.5)));
   const S=SK[skin];
   hv+=((hover>=0&&mode==='home'?1:0)-hv)*Math.min(1,dt*7); if(hover>=0) lastHover=hover;
   eraFade+=(((mode==='era'&&!busy)?1:0)-eraFade)*Math.min(1,dt*4);
   ctx.clearRect(0,0,Wd,cvH);
   if(S.mode==='lapis') drawLapis(S); else { if(wKey!=='-'){ wKey='-'; wSheet.getContext('2d').clearRect(0,0,wSheet.width,wSheet.height); } paintVellum(S); for(const id of ORDER) drawChannel(id,S); } // the lapis sheet carries the vellum's glow and era bands with the water
   drawSpring(S);
-  // particles
-  const span=view.u1-view.u0;
-  ctx.lineCap='round'; ctx.lineWidth=S.mode==='lines'?.8:1.15;
-  const runs=new Map();
-  for(let pi=0; pi<nP; pi++){ const p=P[pi];
+  // the flow
+  const span=view.u1-view.u0, pdt=reduce?0:dt;
+  ctx.lineCap='round';
+  const runs=new Map(), threads=[];
+  // inside an era the streaks are fewer, longer and quieter, so the water reads as flowing rather than as static
+  const nUse=Math.round(nP*(1-.3*lod)), quiet=1-.25*lod;
+  for(let pi=0; pi<nUse; pi++){ const p=P[pi];
     if(!p.ok){ spawn(p); continue; }
-    const v=.03*span*(1-.6*p.lat*p.lat), pdt=reduce?0:dt; p.life+=pdt; p.u+=v*pdt;
-    if(p.life>p.max||p.u>view.u1||p.u<view.u0-span*.05){ spawn(p); continue; }
-    const fade=Math.min(1,p.life/.6)*Math.min(1,(p.max-p.life)/.8); const ch=CH[p.ch];
-    // a tapered streamline: bright at the head, fading along its tail
-    const pts=[];
-    for(let k=0;k<16;k++){ const uu=p.u-k*v*.09, yr=u2y(uu), r=chAt(ch,yr); if(!r) break;
-      const lat=Math.max(-.92,Math.min(.92,p.lat+.06*Math.sin(T*.5+p.ph+uu*55)));
-      pts.push([X(uu), Yp(r[0]+mea(uu)+lat*r[1]/2)]); }
-    if(pts.length<3){ if(!pts.length) spawn(p); continue; }
-    const rec=p.gold&&showGT&&inRecovery(p.ch,u2y(p.u));
-    const col=p.gold?S.fleck:S.part, base=(p.gold?.95:S.partA*.85)*fade*(CH[p.ch].fade?.8:1);
-    for(let seg=0; seg<3; seg++){ const a=Math.floor(seg*(pts.length-1)/3), b=Math.floor((seg+1)*(pts.length-1)/3); if(b<=a) continue;
-      const al=Math.round(base*(1-seg*.36)*24)/24; if(al<=0) continue; // 24 strengths are indistinguishable from continuous ones here
-      const k=col+'|'+((p.gold?(rec?2.6:1.7):1.05)*(1-seg*.25))+'|'+al; let run=runs.get(k); if(!run) runs.set(k,run=[]); run.push(pts.slice(a,b+1)); }
+    p.life+=pdt;
+    if(!p.sea&&(p.life>p.max||p.u>view.u1+span*.02||p.u<view.u0-span*.05)){ spawn(p); continue; }
+    const pts=flowStep(p,dt,span,'s'); if(!pts||!pts.length){ spawn(p); continue; } if(pts.length<2) continue;
+    const fade=p.sea?Math.max(0,1-p.sea.t/1.7)*.9:Math.min(1,p.life/.6)*Math.min(1,(p.max-p.life)/.8);
+    addRuns(runs,pts,p.gold,p.gold?p.gw:1.05,(p.gold?.95:S.partA*.85)*fade*(CH[p.ch].fade?.8:1)*quiet);
   }
-  for(const [k,list] of runs){ const [col,lw,al]=k.split('|'); ctx.lineWidth=+lw; ctx.strokeStyle=`rgba(${col},${al})`; ctx.beginPath();
-    for(const q of list){ ctx.moveTo(q[0][0],q[0][1]); for(let j=1;j<q.length;j++) ctx.lineTo(q[j][0],q[j][1]); } ctx.stroke(); }
+  if(showGT&&!reduce){
+    // every few seconds each creed and confession in view gives gold into its church's water, a little downstream of the diamond
+    CONFESSIONS.forEach((c,i)=>{ const beat=Math.floor(T/5+i*.37); if(EMB[i]===undefined){ EMB[i]=beat; return; } if(beat===EMB[i]) return; EMB[i]=beat;
+      const u=y2u(c[0]); if(u<view.u0||u>view.u1||EM.length>70||!chAt(CH[c[2]],c[0])) return;
+      // a church still only a thread of water (the Particular Baptists in 1644) carries its gold from where it has width enough to hold it
+      const ppu=(view.bottom-view.top)/(view.y1-view.y0); let ue=u; while(ue<u+span*.08){ const r=chAt(CH[c[2]],u2y(ue)); if(r&&r[1]*ppu>=6) break; ue+=span*.002; } if(ue>=u+span*.08) return;
+      const [x,y]=markXY(c[0],c[2]); RIP.push({x,y,t:0,R:9,d:1});
+      for(let j=0;j<3;j++) EM.push({ch:c[2],u:ue+span*.003*(j+1),tie:null,lat:(Math.random()*2-1)*.55,ph:Math.random()*6.283,off:0,life:0,max:4+Math.random()*2.2,gold:true,gw:2.1,sea:null,prev:null}); });
+    // and every third ring of the spring sends a thread down the river (inside an era, where the spring is out of view, it comes in from upstream)
+    const beat=Math.floor(T*.35); if(beat!==trBeat){ const first=trBeat<0; trBeat=beat; if((beat%3===0||first)&&TR.length<6){ const sx=X(y2u(30));
+      if(sx>-20&&sx<Wd) TR.push({ch:'one',u:y2u(30)+.0004,tie:null,lat:0,off:0,ph:0,life:0,sea:null,prev:null,gold:true});
+      else { const u=view.u0+span*.01, id=pickChannel(u2y(u)); if(id) TR.push({ch:id,u,tie:null,lat:(Math.random()*2-1)*.3,off:0,ph:0,life:0,sea:null,prev:null,gold:true}); } } }
+  }
+  for(let i=EM.length-1;i>=0;i--){ const p=EM[i]; p.life+=pdt;
+    const pts=(p.sea||(p.life<p.max&&p.u<view.u1+span*.02))?flowStep(p,dt,span,'e'):null; if(!pts||!pts.length){ EM.splice(i,1); continue; } if(pts.length<2) continue;
+    const fade=p.sea?Math.max(0,1-p.sea.t/1.7):Math.min(1,p.life/.35)*Math.min(1,(p.max-p.life)/1.2);
+    addRuns(runs,pts,true,p.gw,.95*fade*quiet); }
+  for(let i=TR.length-1;i>=0;i--){ const p=TR[i]; p.life+=pdt; if(!p.sea&&p.u>view.u1+span*.02){ TR.splice(i,1); continue; }
+    const pts=flowStep(p,dt,span,'t'); if(!pts||!pts.length){ TR.splice(i,1); continue; } if(pts.length<2) continue;
+    // brighter as it passes a creed or confession of the church it is in
+    let boost=0; if(!p.sea){ const yr=u2y(p.u); for(const c of CONFESSIONS) if(c[2]===p.ch){ const d=Math.abs(yr-c[0]); if(d<14) boost=Math.max(boost,1-d/14); } }
+    threads.push([pts,(p.sea?Math.max(0,1-p.sea.t/1.7):1)*Math.min(1,p.life/.5),boost]); }
+  for(const [k,list] of runs){ const gold=k>=1e6, r=k%1e6; ctx.lineWidth=Math.floor(r/100)/20; ctx.strokeStyle=`rgba(${gold?S.fleck:S.part},${(r%100)/24})`; ctx.beginPath();
+    for(let i=0;i<list.length;i+=3){ const q=list[i], a=list[i+1], b=list[i+2]; ctx.moveTo(q[a][0],q[a][1]); for(let j=a+1;j<=b;j++) ctx.lineTo(q[j][0],q[j][1]); } ctx.stroke(); }
+  // at the head of each sand spit, the water parting round it turns in a small eddy
+  if(FH.length){ ctx.lineWidth=.8; FH.forEach((h,i)=>{ if(h.x<-10||h.x>Wd+10) return; for(const [r,a0] of [[3.2,0],[5.4,2.4]]){ const ang=T*1.5*(i%2?1:-1)+a0+i;
+    ctx.strokeStyle=`rgba(${S.part},${.42-r*.04})`; ctx.beginPath(); ctx.arc(h.x+7+1.5*Math.sin(T*.6+i),h.y,r,ang,ang+4); ctx.stroke(); } }); }
+  for(const [pts,fade,boost] of threads){
+    // a soft light round the thread, laid in screen so it brightens the water rather than greying it
+    ctx.save(); ctx.globalCompositeOperation='screen'; ctx.lineWidth=6+2.5*boost; ctx.strokeStyle=`rgba(${S.glow||S.fleck},${(.22+.25*boost)*fade})`; ctx.beginPath(); pts.slice(0,Math.ceil(pts.length*.6)).forEach((q,j)=>j?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])); ctx.stroke(); ctx.restore();
+    for(let seg=0; seg<4; seg++){ const a=Math.floor(seg*(pts.length-1)/4), b=Math.floor((seg+1)*(pts.length-1)/4); if(b<=a) continue;
+      ctx.lineWidth=[2.4,1.9,1.3,.8][seg]*(1+.35*boost); ctx.strokeStyle=`rgba(${S.fleck},${[1,.75,.5,.25][seg]*fade})`; ctx.beginPath();
+      for(let j=a;j<=b;j++) j===a?ctx.moveTo(pts[j][0],pts[j][1]):ctx.lineTo(pts[j][0],pts[j][1]); ctx.stroke(); }
+    ctx.fillStyle=`rgba(255,247,222,${.85*fade})`; ctx.beginPath(); ctx.arc(pts[0][0],pts[0][1],1.4+boost,0,6.283); ctx.fill(); }
+  // rings on the water: where a confession gives gold, and where a thread reaches the sea
+  for(let i=RIP.length-1;i>=0;i--){ const r=RIP[i]; r.t+=pdt; const f=r.t/r.d; if(f>=1){ RIP.splice(i,1); continue; } const rr=2+f*r.R;
+    ctx.strokeStyle=`rgba(${S.gold},${(1-f)*.55})`; ctx.lineWidth=1; ctx.beginPath(); ctx.ellipse(r.x,r.y,rr,rr*.7,0,0,6.283); ctx.stroke(); }
   if(showGT) drawGospel(S);
   drawTop(S);
   // tooltip
@@ -3054,16 +3345,16 @@ const LROADS=[
 const LKEY=[['gold','Where the gospel was confessed and recovered'],['dia','A creed or confession'],['dot','An event'],['pale','A lesser stream'],['road','A road of the gospel']];
 var landReady; let landKey='', landOn=false, landPinned=-1, landTowns=[];
 const landWide=()=>Wd>=860&&Hd>=560;
-function landMap(){ const v=resolve({kind:'home'}), k=(v.bottom-v.top)/647; return {P:(x,y)=>[x*Wd/1440, v.top+(y-118)*k], s:Math.max(.8,Math.min(1.12,Math.min(Wd/1440,k)))}; }
+function landMap(){ const v=resolve({kind:'home'}), k=(v.bottom-v.top)/647, LF=(1-v.u0)/(v.u1-v.u0); return {P:(x,y)=>[x*Wd/1440*LF, v.top+(y-118)*k], s:Math.max(.8,Math.min(1.12,Math.min(Wd/1440,k)))}; }
 function smoothPath(P,pts){ const q=pts.map(p=>P(p[0],p[1])); let d=`M${q[0][0].toFixed(1)} ${q[0][1].toFixed(1)}`;
   for(let i=1;i<q.length;i++){ const a=q[i-1], b=q[i], m=[(a[0]+b[0])/2,(a[1]+b[1])/2]; d+= i===1?` L${m[0].toFixed(1)} ${m[1].toFixed(1)}`:` Q${a[0].toFixed(1)} ${a[1].toFixed(1)} ${m[0].toFixed(1)} ${m[1].toFixed(1)}`; }
   const z=q[q.length-1]; return d+` L${z[0].toFixed(1)} ${z[1].toFixed(1)}`; }
 function landAvoid(){ // places that land drawings must keep clear of, in stage pixels
   const ir=inner.getBoundingClientRect(), out=[];
-  for(const e of [...document.querySelectorAll('.title-card > *, .corner .legend'), rkey]){ if(e.hidden||!e.offsetWidth) continue; const r=e.closest('.title-card, .corner')?inkRect(e):e.getBoundingClientRect(); if(!r.width) continue; out.push([r.left-ir.left-8,r.top-ir.top-6,r.right-ir.left+8,r.bottom-ir.top+6]); }
+  for(const e of [...document.querySelectorAll('.title-card > *, .corner .legend'), rkey]){ if(e.hidden||!e.offsetWidth) continue; const r=e.closest('.title-card, .corner')?inkRect(e):e.getBoundingClientRect(); if(!r.width) continue; const m=e.closest('.title-card')?[20,14]:[8,6]; /* the title is given room to breathe */ out.push([r.left-ir.left-m[0],r.top-ir.top-m[1],r.right-ir.left+m[0],r.bottom-ir.top+m[1]]); }
   // and the rubrics of the four great events, wherever the river set them
   const kA=homeLayout().keyAt; for(const k in kA){ const b=kA[k].b; out.push([b[0]-6,b[1]-6,b[2]+6,b[3]+6]); }
-  out.push([0,0,Wd,96]); out.push([0,Hd-34,Wd,Hd]); return out; }
+  out.push([0,0,Wd,96]); out.push([0,Hd-34,Wd,Hd]); out.push([X(1)-4,0,Wd,view.bottom+40]); /* and the sea at today, down to where the land's own bay takes over */ return out; }
 // a title line is as wide as its words, not its box
 const inkRect=e=>{ const r=document.createRange(); r.selectNodeContents(e); return r.getBoundingClientRect(); };
 const LSTEPS=[[0,0],[0,-16],[0,16],[0,-32],[0,32],[16,-16],[16,0],[-16,0],[16,-32],[32,0],[32,-16],[-32,0],[0,-48],[0,48],[0,-60],[48,32],[48,48],[48,64],[-48,32]];
@@ -3077,7 +3368,9 @@ function layoutLand(noKey){
   if(!wide) return;
   const {P,s}=landMap();
   const defs=lel('defs',{},landSvg);
-  defs.innerHTML='<linearGradient id="lwall" x1="0" x2="1"><stop offset="0" stop-color="#f7efdc"/><stop offset=".55" stop-color="#efe3c8"/><stop offset="1" stop-color="#d6c39d"/></linearGradient>'+
+  defs.innerHTML='<filter id="lengr" color-interpolation-filters="sRGB" x="-10%" y="-10%" width="120%" height="120%"><feColorMatrix type="saturate" values=".4"/>'+
+    '<feComponentTransfer><feFuncR type="linear" slope=".95" intercept=".035"/><feFuncG type="linear" slope=".93" intercept=".035"/><feFuncB type="linear" slope=".86" intercept=".03"/></feComponentTransfer></filter>'+
+    '<linearGradient id="lwall" x1="0" x2="1"><stop offset="0" stop-color="#f7efdc"/><stop offset=".55" stop-color="#efe3c8"/><stop offset="1" stop-color="#d6c39d"/></linearGradient>'+
     '<linearGradient id="ltile" x1="0" x2="1"><stop offset="0" stop-color="#c24a2a"/><stop offset="1" stop-color="#8f2c16"/></linearGradient>'+
     '<linearGradient id="lcopper" x1="0" x2="1"><stop offset="0" stop-color="#7fb2a0"/><stop offset="1" stop-color="#3f7a6a"/></linearGradient>'+
     '<linearGradient id="llead" x1="0" x2="1"><stop offset="0" stop-color="#b9bfc4"/><stop offset="1" stop-color="#7d858c"/></linearGradient>'+
@@ -3099,7 +3392,7 @@ function layoutLand(noKey){
   inner.classList.toggle('key-on',!rkey.hidden);
   const avoid=landAvoid();
   { // the sea keeps its own shore: towns stand on land
-    const lg0=document.querySelector('.corner .legend'), st=lg0&&lg0.offsetWidth?inkRect(lg0).bottom-inner.getBoundingClientRect().top+10:-1e9, sb=Hd-30;
+    const lg0=document.querySelector('.corner .legend'), st=lg0&&lg0.offsetWidth&&inkRect(lg0).left-inner.getBoundingClientRect().left>Wd*.5?inkRect(lg0).bottom-inner.getBoundingClientRect().top+10:-1e9, sb=Hd-30;
     const c=[[1146,872],[1160,838],[1196,828],[1300,820],[1340,812],[1420,804],[1440,800]].map(q=>{ const p=P(q[0],q[1]); return [p[0],Math.min(Math.max(p[1],st),sb)]; });
     for(let i=0;i<c.length-1;i++) avoid.push([c[i][0],Math.min(c[i][1],c[i+1][1])-3,i===c.length-2?Wd:c[i+1][0],Hd]); }
   const wsc=(view.bottom-view.top)/(view.y1-view.y0);
@@ -3112,15 +3405,17 @@ function layoutLand(noKey){
     const build=()=>{ g.textContent='';
       if(!dr){ // a place named only: a small inked ring and dot, the name to its right
         lel('circle',{cx:x,cy:y-4.5*s,r:3.3*s,fill:'none',stroke:LINK,'stroke-width':.9},g); lel('circle',{cx:x,cy:y-4.5*s,r:1.1*s,fill:LRED},g);
-        const lab=lel('text',{x:x+7*s,y:y,'text-anchor':'start',class:'lname-t','font-size':13.5*s},g);
+        const lab=lel('text',{x:x+7*s,y:y,'text-anchor':'start',class:'lname-t','font-size':12.5*s},g);
         lel('tspan',{fill:LRED},lab).textContent=name[0]; lel('tspan',{},lab).textContent=name.slice(1);
         const w=lab.getComputedTextLength?lab.getComputedTextLength():name.length*7*s;
         lel('rect',{class:'lhit',x:x-6*s,y:y-15*s,width:w+16*s,height:21*s},g); return; }
-      lel('ellipse',{cx:x,cy:y+1,rx:31*s,ry:4.6*s,fill:'#cdbf9c',opacity:.45},g);
-      lel('path',{d:`M${x-27*s} ${y+1}q${27*s} ${-4.5*s} ${54*s} 0`,fill:'none',stroke:LINK,'stroke-width':.9,opacity:.5},g);
-      for(let k=0;k<5;k++) lel('path',{d:`M${x+(5+k*4.5)*s} ${y+1}l${-3*s} ${4*s}`,stroke:LINK,'stroke-width':.7,opacity:.35},g);
-      (LDRAW[dr]||LDRAW.ph)(lel('g',{transform:`translate(${x} ${y}) scale(${.94*s})`},g));
-      const lab=lel('text',{x,y:y+21*s,'text-anchor':'middle',class:'lname-t','font-size':16*s},g);
+      // the ground as an engraver cuts it: a ruled line under the building and below it shorter strokes, each fainter, the last only on the shaded side
+      lel('path',{d:`M${x-29*s} ${y+.6}h${58*s}`,stroke:LINK,'stroke-width':.8,opacity:.55},g);
+      lel('path',{d:`M${x-21*s} ${y+2.8*s}h${44*s}M${x-12*s} ${y+4.8*s}h${30*s}`,stroke:LINK,'stroke-width':.55,opacity:.3},g);
+      lel('path',{d:`M${x+2*s} ${y+6.6*s}h${14*s}`,stroke:LINK,'stroke-width':.5,opacity:.22},g);
+      // the drawing itself is hand-tinted, not painted: its colours are quietened to the washes of an old engraving (see #lengr)
+      (LDRAW[dr]||LDRAW.ph)(lel('g',{transform:`translate(${x} ${y}) scale(${.94*s})`,filter:'url(#lengr)'},g));
+      const lab=lel('text',{x,y:y+21*s,'text-anchor':'middle',class:'lname-t','font-size':14*s},g);
       lel('tspan',{fill:LRED},lab).textContent=name[0]; lel('tspan',{},lab).textContent=name.slice(1);
       lel('rect',{class:'lhit',x:x-33*s,y:y-44*s,width:66*s,height:72*s},g); };
     // each town stands on the bank of its own stream at its own date, just clear of the water: the nearest place along the bank, above or below,
@@ -3137,14 +3432,18 @@ function layoutLand(noKey){
       for(const id of ORDER){ if(fam.includes(id)) continue; const k=chAt(CH[id],yr); if(!k||k[1]<.004) continue; const c=Yp(k[0]+mea(u)), h=k[1]*wsc/2;
         if((c-m)*(c-oc)<0){ const x=anc(id); if(anc(cid).includes(id)) return 1e6; if(!x.some(z=>anc(cid).includes(z)&&z!=='one')) return 1e6; pen=Math.max(pen,120); continue; } if(Math.max(0,q[1]-(c+h),(c-h)-q[3])+2<own) pen=Math.max(pen,60); }
       return pen; };
+    // towns are not to stand in a row along the foot like goods on a shelf: a place level with a near neighbour, or down by the rule of centuries, costs more
+    const rowPen=(bx,by)=>{ let pen=0; for(const j of landTowns){ const o=TOWNS[j]; if(Math.abs(o.y-by)<14*s&&Math.abs(o.x-bx)<150*s) pen=90; } if(by+v[3]>Hd-30-44*s) pen+=22; return pen; };
     for(const far of dr?[0,1]:[0]){ if(far&&best) break; /* a house may walk further along its stream to find dry ground; a name may not */ for(const dx of far?[300,-300,340,-340,380,-380,420,-420,470,-470,520,-520]:[0,8,-8,18,-18,30,-30,44,-44,60,-60,80,-80,104,-104,130,-130,160,-160,190,-190,225,-225,260,-260]){ const bx=x0+dx*s, a=bankAt(bx); const dy=u2y(xToU(bx))-Y; if(!a||(!far&&Math.abs(dy)>160)||(far&&(dy<(cid==='one'?-60:Math.min(-60,CH[cid].k[0][0]-Y))||dy>360))) continue; // never so far along that the town stands in another age
       for(const side of [-1,1]) for(const gap of [4,9,16,25,36,50,66,85,100,115,130,145,160,175,195,215,235,260,290,320,350]){ const by=side<0?a[0]-a[1]-gap*s-v[3]:a[0]+a[1]+gap*s-v[1], cost=gap+Math.abs(dx)*1.6;
         if(best&&cost>=best[2]) continue; const q=[bx+v[0],by+v[1],bx+v[2],by+v[3]];
-        if(q[0]>4&&q[2]<Wd-4&&q[1]>4&&q[3]<Hd-30&&!lHit(q,avoid)&&!wetBox(q,2)){ const c2=cost+strange(q); if(c2<1e5&&(!best||c2<best[2])) best=[bx,by,c2]; } } } }
+        if(q[0]>4&&q[2]<Wd-4&&q[1]>4&&q[3]<Hd-30&&!lHit(q,avoid)&&!wetBox(q,2)){ const c2=cost+strange(q)+rowPen(bx,by); if(c2<1e5&&(!best||c2<best[2])) best=[bx,by,c2]; } } } }
     if(best){ ok=true; x=best[0]; y=best[1]; build(); avoid.push(g._box=[x+v[0]-9,y+v[1]-4,x+v[2]+9,y+v[3]+4]); }
     g.dataset.bank=ok?1:0;
     if(!ok) for(const [dx,dy] of LSTEPS){ x=P(sx,sy)[0]+dx*s; y=P(sx,sy)[1]+dy*s; const q=[x+v[0],y+v[1],x+v[2],y+v[3]]; if(!lHit(q,avoid)&&!wetBox(q,2)){ ok=true; build(); avoid.push(g._box=[q[0]-5,q[1]-4,q[2]+5,q[3]+4]); break; } }
-    if(!ok){ g.remove(); return; }
+    // before a town is left off the map altogether, it may stand on any clear ground near its sketch place or its own date on the river, nearest first,
+    // so long as no stranger stream runs between it and its own
+    const finish=()=>{
     t.x=x; t.y=y; g._ti=i; landTowns.push(i);
     const show=()=>openTown(i), hide=()=>{ if(landPinned!==i) closeTown(); };
     g.addEventListener('pointerenter',e=>{ if(e.pointerType==='mouse') show(); });
@@ -3152,19 +3451,17 @@ function layoutLand(noKey){
     g.addEventListener('click',e=>{ e.stopPropagation(); landPinned=i; openTown(i); });
     g.addEventListener('focus',show); g.addEventListener('blur',()=>setTimeout(()=>{ if(!tslip.contains(document.activeElement)) hide(); },0));
     g.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); readTown(i); } if(e.key==='Escape') closeTown(true); });
+    };
+    // a town that found no place is not given up yet: it may take any clear ground close to its own date on the river (never far up or downstream
+    // in time), with no stranger stream between it and its own, nearest first
+    if(!ok){ const cand=[];
+      for(let dx=-120;dx<=120;dx+=12) for(let dy=-320;dy<=320;dy+=12){ const a=bankAt(x0+dx*s); if(!a) continue; cand.push([x0+dx*s,a[0]+dy*s,Math.abs(dx)*1.6+Math.abs(dy)]); }
+      cand.sort((p,q)=>p[2]-q[2]);
+      for(const [cx,cy] of cand){ const q=[cx+v[0],cy+v[1],cx+v[2],cy+v[3]]; if(q[0]>4&&q[2]<Wd-4&&q[1]>96&&q[3]<Hd-30&&!lHit(q,avoid)&&!wetBox(q,2)&&strange(q)<1e5){ ok=true; x=cx; y=cy; break; } }
+      if(!ok){ g.remove(); return; } build(); avoid.push(g._box=[x+v[0]-5,y+v[1]-4,x+v[2]+5,y+v[3]+4]); }
+    finish();
   });
-  // behind each named city, where dry ground allows, the city itself drawn small and faint, sunk into the vellum below the houses of the traditions;
-  // it is set only once every name has its place, so no name gives way to a drawing
-  landTowns.forEach(i=>{ const t=TOWNS[i], cd=!t[3]&&LCITY[t[0]]; if(!cd) return; const g=[...TG.children].find(e=>e._ti===i); if(!g) return;
-    const cg=lel('g',{class:'lcity',filter:'url(#lfade)'}); g.insertBefore(cg,g.firstChild);
-    lel('path',{d:`M${-20*s} ${.4*s}q${20*s} ${-2.6*s} ${40*s} 0`,fill:'none',stroke:LINK,'stroke-width':.7,opacity:.6},cg);
-    LDRAW[cd](lel('g',{transform:`scale(${.62*s})`},cg));
-    // above the ring, else beside the name on either hand, else just beneath it
-    const nb=g._box, nw=nb[2]-nb[0]-18;
-    const own=[nb[0]+6,nb[1]+2,nb[2]-6,nb[3]-2]; // its own name and ring, kept clear by a hair
-    for(const [ox,oy,abs] of [[0,-9],[12,-9],[-12,-9],[24,-9],[-26,3],[nw+24,3,1],[nw/2,30,1],[-32,-6],[nw+30,-6,1],[nw/2,-12,1],[-38,10],[nw+34,10,1],[nw/2,36,1]]){ const dx=t.x+ox*(abs?1:s), dy=t.y+oy*s; cg.setAttribute('transform',`translate(${dx} ${dy})`); const b=cg.getBBox(), q=[dx+b.x,dy+b.y,dx+b.x+b.width,dy+b.y+b.height];
-      if(q[0]>4&&q[2]<Wd-4&&q[1]>96&&q[3]<Hd-32&&!lHit(q,avoid.filter(a=>a!==g._box))&&!lHit(q,[own])&&!wetBox(q,3)){ avoid.push([q[0]-3,q[1]-3,q[2]+3,q[3]+2]); return; } }
-    cg.remove(); });
+  // (a named city is marked by its ring and name alone: the faint drawings once set behind them read as unfinished)
   // the key yields if a town could find no place beside it
   if(!noKey&&!rkey.hidden&&landTowns.length<able&&TOWNS.some((t,i)=>!landTowns.includes(i)&&LRANK.indexOf(t[0])<17)){ landKey=''; return layoutLand(true); } // the key gives way only for one of the chief towns
   let seed=17; const rnd=()=>{ seed=(seed*16807)%2147483647; return seed/2147483647; };
@@ -3175,13 +3472,12 @@ function layoutLand(noKey){
   // the shaded flank hatched in ink, a ledge drawn across the slope
   const hill=(hx,hy,a,ochre)=>put(g=>{ const w=a*(1.35+rnd()*.3), pk=hx+(rnd()-.4)*a*.35, top=hy-a*(1+rnd()*.2), f=n=>n.toFixed(1);
     const d=`M${f(hx-w)} ${f(hy)}C${f(hx-w*.5)} ${f(hy-a*.15)} ${f(pk-a*.5)} ${f(top+a*.05)} ${f(pk)} ${f(top)}C${f(pk+a*.55)} ${f(top+a*.05)} ${f(hx+w*.5)} ${f(hy-a*.2)} ${f(hx+w)} ${f(hy)}`;
-    lel('path',{d:d+'z',fill:`url(#${ochre?'lhillO':'lhillG'})`,opacity:.62},g);
-    lel('path',{d:`M${f(hx-w*.72)} ${f(hy-a*.1)}C${f(hx-w*.4)} ${f(hy-a*.3)} ${f(pk-a*.45)} ${f(top+a*.2)} ${f(pk-a*.08)} ${f(top+a*.1)}`,fill:'none',stroke:'#fbf6e8','stroke-width':1.3,opacity:.85,'stroke-linecap':'round'},g);
-    let h=''; for(let k=1;k<6;k++){ const t=k/6.2, x=pk+(hx+w-pk)*t, y=top+(hy-top)*Math.pow(t,.75)+.6, L=a*(.5-t*.3); h+=`M${f(x)} ${f(y)}l${f(-L*.3)} ${f(L)}`; }
-    lel('path',{d:h,stroke:LINK,'stroke-width':.6,opacity:.42,fill:'none','stroke-linecap':'round'},g);
+    lel('path',{d:d+'z',fill:'#d9ccab',opacity:.38},g); // one quiet earth wash for every hill
+    let h=''; for(let k=1;k<9;k++){ const t=k/9.2, x=pk+(hx+w-pk)*t, y=top+(hy-top)*Math.pow(t,.75)+.6, L=a*(.62-t*.42); h+=`M${f(x)} ${f(y)}l${f(-L*.3)} ${f(L)}`; }
+    lel('path',{d:h,stroke:LINK,'stroke-width':.55,opacity:.5,fill:'none','stroke-linecap':'round'},g); // hachures down the shaded flank
     if(a>9*s) lel('path',{d:`M${f(pk-a*.35)} ${f(top+a*.55)}q${f(a*.4)} ${f(-a*.12)} ${f(a*.8)} ${f(a*.06)}`,stroke:LINK,'stroke-width':.5,opacity:.3,fill:'none'},g);
     lel('path',{d,fill:'none',stroke:LINK,'stroke-width':.85,opacity:.55},g); });
-  const range=(x0,y0,len,n,amp,ochre)=>{ for(let i=0;i<n;i++){ const a=amp*(.75+rnd()*.5)*s, [hx,hy]=P(x0+i*len/n+rnd()*6, y0+rnd()*8-(i%2)*5); hill(hx,hy,a,ochre); } };
+  const range=(x0,y0,len,n,amp,ochre)=>{ for(let i=0;i<n;i++){ const a=amp*(.6+rnd()*.9)*s, [hx,hy]=P(x0+i*len/n+rnd()*6, y0+rnd()*8-(i%2)*5); hill(hx,hy,a,ochre); } };
   // trees as an engraver cut them: olives with twisted trunks and silvery scalloped crowns, a dark cypress among them,
   // and in the north woods of firs in drooping tiers mixed with round-crowned oaks, each shaded on its right side
   const scal=(cx,cy,rx,ry,n,b)=>{ let d=''; const ph=rnd()*6.28;
@@ -3193,50 +3489,65 @@ function layoutLand(noKey){
   const foot=(g,x,y,w)=>lel('path',{d:`M${x-w*.4} ${y+.6}h${w*1.1}`,stroke:LINK,'stroke-width':.6,opacity:.35},g);
   const olive=(x,y)=>put(g=>{ foot(g,x,y,10*s);
     lel('path',{d:`M${x-1.4*s} ${y}q${1.2*s} ${-2.6*s} ${-.2*s} ${-5.4*s}q${.4*s} ${-1.2*s} ${1.6*s} ${-2.2*s}M${x+1.2*s} ${y}q${-.6*s} ${-2.8*s} ${.8*s} ${-5.2*s}l${1.4*s} ${-1.6*s}`,fill:'none',stroke:LINK,'stroke-width':1.05,'stroke-linecap':'round',opacity:.8},g);
-    lel('path',{d:scal(x+.3*s,y-10*s,6.2*s,3.9*s,8,1.32),fill:'#a5ad8b',stroke:LINK,'stroke-width':.8,opacity:.9},g); tshade(g,x+.3*s,y-10*s,6.2*s,3.9*s);
+    lel('path',{d:scal(x+.3*s,y-10*s,6.2*s,3.9*s,8,1.32),fill:'#b9b79e',stroke:LINK,'stroke-width':.8,opacity:.9},g); tshade(g,x+.3*s,y-10*s,6.2*s,3.9*s);
     if(rnd()<.6) tuft(g,x+(rnd()<.5?-5:6)*s,y+.4); });
   const cypress=(x,y)=>put(g=>{ foot(g,x,y,6*s); const h=(19+rnd()*5)*s;
     lel('path',{d:`M${x} ${y}v${-2*s}`,stroke:LINK,'stroke-width':1,opacity:.8},g);
-    lel('path',{d:`M${x-.3*s} ${y-2*s}q${-3*s} ${-h*.3} ${-1.4*s} ${-h*.72}q${.8*s} ${-h*.2} ${1.7*s} ${-h*.28}q${1.6*s} ${h*.16} ${2*s} ${h*.42}q${.6*s} ${h*.3} ${-2*s} ${h*.58}z`,fill:'#5d775f',stroke:LINK,'stroke-width':.8,opacity:.92},g);
+    lel('path',{d:`M${x-.3*s} ${y-2*s}q${-3*s} ${-h*.3} ${-1.4*s} ${-h*.72}q${.8*s} ${-h*.2} ${1.7*s} ${-h*.28}q${1.6*s} ${h*.16} ${2*s} ${h*.42}q${.6*s} ${h*.3} ${-2*s} ${h*.58}z`,fill:'#7f8a74',stroke:LINK,'stroke-width':.8,opacity:.92},g);
     lel('path',{d:`M${x+.6*s} ${y-5*s}l${.9*s} ${-1.6*s}M${x+.4*s} ${y-9*s}l${.9*s} ${-1.6*s}M${x+.2*s} ${y-13*s}l${.8*s} ${-1.5*s}`,stroke:LINK,'stroke-width':.55,opacity:.55},g); });
   const fir=(x,y,a)=>put(g=>{ foot(g,x,y,a*1.1); lel('path',{d:`M${x} ${y}v${-3*s}`,stroke:LINK,'stroke-width':1,opacity:.8},g);
     const H=a*2.1; for(let t=0;t<4;t++){ const w=a*(.62-t*.12), yb=y-3*s-t*H*.2, ht=H*(.42-t*.04);
-      lel('path',{d:`M${x-w} ${yb}Q${x-w*.28} ${yb-ht*.42} ${x} ${yb-ht}Q${x+w*.28} ${yb-ht*.42} ${x+w} ${yb}Q${x} ${yb-ht*.2} ${x-w} ${yb}z`,fill:'#6b8870',stroke:LINK,'stroke-width':.75,'stroke-linejoin':'round',opacity:.92},g);
+      lel('path',{d:`M${x-w} ${yb}Q${x-w*.28} ${yb-ht*.42} ${x} ${yb-ht}Q${x+w*.28} ${yb-ht*.42} ${x+w} ${yb}Q${x} ${yb-ht*.2} ${x-w} ${yb}z`,fill:'#8b9682',stroke:LINK,'stroke-width':.75,'stroke-linejoin':'round',opacity:.92},g);
       lel('path',{d:`M${x} ${yb-ht}Q${x+w*.28} ${yb-ht*.42} ${x+w} ${yb}Q${x+w*.45} ${yb-ht*.12} ${x+.4} ${yb-ht*.2}z`,fill:'url(#lhat)'},g); }
     if(rnd()<.4) tuft(g,x-a*.8,y+.4); });
   const oak=(x,y,a)=>put(g=>{ foot(g,x,y,a*1.3);
     lel('path',{d:`M${x-.8*s} ${y}l${.3*s} ${-a*.75}l${-2*s} ${-2*s}M${x+.8*s} ${y}l${-.1*s} ${-a*.75}l${2.2*s} ${-1.8*s}`,fill:'none',stroke:LINK,'stroke-width':1,'stroke-linecap':'round',opacity:.8},g);
-    const cy=y-a*1.25; lel('path',{d:scal(x,cy,a*.72,a*.6,10,1.28),fill:'#879b74',stroke:LINK,'stroke-width':.8,opacity:.92},g); tshade(g,x,cy,a*.72,a*.6); });
+    const cy=y-a*1.25; lel('path',{d:scal(x,cy,a*.72,a*.6,10,1.28),fill:'#a3a68b',stroke:LINK,'stroke-width':.8,opacity:.92},g); tshade(g,x,cy,a*.72,a*.6); });
   const grove=(cx,cy,n)=>{ for(let i=0;i<n;i++){ const [x,y]=P(cx+(i-n/2)*10+rnd()*4, cy+(i%2)*5); (i===1&&n>2?cypress:olive)(x,y); } };
-  const wood=(cx,cy,w,n)=>{ for(let i=0;i<n;i++){ const [x,y]=P(cx+rnd()*w, cy+rnd()*28), a=(7+rnd()*4)*s; (rnd()<.3?oak:fir)(x,y,a); } };
+  const wood=(cx,cy,w,n)=>{ for(let i=0;i<n;i++){ const [x,y]=P(cx+rnd()*w, cy+rnd()*28), a=(7+rnd()*4)*s; (rnd()<.7?oak:fir)(x,y,a); } }; // mostly oaks
   // hill country: the highlands of the East in ochre, the Alps and the northern uplands in green earth
   range(30,170,230,8,13,1); range(80,250,150,5,11,1); range(196,226,80,3,9,1); range(250,600,90,4,10,1); range(30,600,110,5,10,1);
   range(400,600,120,5,12); range(470,640,90,4,9); range(640,190,130,5,11); range(560,240,80,3,8); range(880,520,100,4,10);
   range(860,250,140,5,10); range(1080,560,120,4,9); range(1180,520,90,3,8); range(980,860,100,4,8); range(700,860,120,5,9); range(300,860,80,3,8,1);
-  // and beyond the named ranges, low hills in clusters wherever the land lies open, each cluster laid on a faint wash
-  { const wash=ground.insertBefore(lel('g',{class:'lwash'}),ground.firstChild);
-    for(let gy=150;gy<900;gy+=58) for(let gx=20+(gy/58%2)*30;gx<1430;gx+=64){ const n=Math.sin(gx*.011+gy*.017)+Math.sin(gx*.023-gy*.009); if(n<.35||rnd()<.3) continue;
-      const ochre=gx<430||(gx<560&&gy<300), [cx,cy]=P(gx+rnd()*20,gy+rnd()*14), rx=46*s, ry=20*s, wb=[cx-rx,cy-ry,cx+rx,cy+ry];
-      if(!wetBox(wb,6)&&!lHit(wb,avoid.slice(0,avoid.length-landTowns.length))) lel('ellipse',{cx,cy:cy-6*s,rx,ry,fill:`url(#${ochre?'lwashO':'lwashG'})`},wash);
-      const k=1+Math.floor(rnd()*3); for(let i=0;i<k;i++) hill(cx+(i-(k-1)/2)*15*s+rnd()*4,cy+(i%2)*4*s,(6+rnd()*4)*s,ochre); } }
-  grove(28,280,2); grove(118,500,3); grove(200,340,3); grove(320,516,2);
-  wood(470,505,80,9); wood(620,520,70,8); wood(700,610,60,6);
+  // (the open land is left open: the paper's own grain is texture enough)
+  // trees only where they mean something: olives by Jerusalem and the Mount of Olives, and the oak woods of the German mission, where Boniface felled the oak at Geismar
+  grove(28,280,2); grove(118,500,3);
+  wood(470,505,80,6);
   // the sea, from the age of missions, held above the rule of centuries
   // where the plain legend stands in the corner, the coast lies below it
-  { const lg0=document.querySelector('.corner .legend'), st=lg0&&lg0.offsetWidth?inkRect(lg0).bottom-inner.getBoundingClientRect().top+10:-1e9;
+  { const lg0=document.querySelector('.corner .legend'), st=lg0&&lg0.offsetWidth&&inkRect(lg0).left-inner.getBoundingClientRect().left>Wd*.5?inkRect(lg0).bottom-inner.getBoundingClientRect().top+10:-1e9;
     const sb=Hd-30, Q=(x,y)=>{ const p=P(x,y); return [p[0],Math.min(Math.max(p[1],st),sb)]; }, f=n=>n.toFixed(1);
     const c=[[1146,872],[1150,852],[1160,838],[1196,828],[1300,820],[1340,812],[1420,804],[1440,800]].map(p=>Q(p[0],p[1]));
     const coast=`M${f(c[0][0])} ${f(c[0][1])}C${f(c[1][0])} ${f(c[1][1])} ${f(c[2][0])} ${f(c[2][1])} ${f(c[3][0])} ${f(c[3][1])}S${f(c[4][0])} ${f(c[4][1])} ${f(c[5][0])} ${f(c[5][1])} ${f(c[6][0])} ${f(c[6][1])} ${f(Wd)} ${f(c[7][1])}`;
-    lel('path',{class:'lseafill',d:coast+`V${sb}Z`,fill:'#c9d3e4',opacity:.45},ground); lel('path',{d:coast,fill:'none',stroke:LINK,'stroke-width':1.1,opacity:.55},ground);
-    for(let r=0;r<3;r++){ let d=''; const [x0,y]=Q(1172+r*4+(r%2)*9, 840+r*10), [x1]=P(1232,0); for(let x=x0;x<x1;x+=(26+rnd()*10)*s) d+=`M${x} ${Math.min(y+rnd()*3,sb-4)}q${4*s} ${-4*s} ${8*s} 0t${8*s} 0`; lel('path',{d,fill:'none',stroke:'#2f4a8a','stroke-width':1,opacity:.6},ground); }
+    // the bay itself is painted with the river's sea, as one water with one coast (see paintSea); here it is only traced, so the land keeps off it
+    lel('path',{class:'lseafill',d:coast+`V${sb}Z`,fill:'none',stroke:'none'},ground);
     const cl=lel('path',{id:'lcoast',d:smoothPath(Q,[[1226,868],[1270,861],[1320,856],[1360,853],[1416,850],[1436,849]]),fill:'none'},ground);
     const t=lel('text',{class:'lsea','font-size':13.5*s},ground); lel('textPath',{href:'#lcoast',startOffset:'50%','text-anchor':'middle'},t).textContent='as the waters cover the sea';
-    { const b=t.getBBox(); if(lHit([b.x,b.y,b.x+b.width,b.y+b.height],avoid)) t.remove(); }
-    const [sx,sy]=Q(1218,860), ship=lel('g',{transform:`translate(${sx} ${Math.min(sy,sb-8)}) scale(${s})`},ground);
-    lel('path',{d:'M-34 7q-10 1 -20 -1M-30 10q-14 2 -26 0',fill:'none',stroke:'#2f4a8a','stroke-width':.9,opacity:.6},ship);
-    lel('path',{d:'M-16 0h32l-5 6h-22z',fill:'#8a6a48',stroke:LINK,'stroke-width':1},ship);
-    [[-8,18],[2,24],[11,16]].forEach(([x,h])=>{ lel('path',{d:`M${x} 0v${-h}`,stroke:LINK,'stroke-width':1},ship); lel('path',{d:`M${x-5} ${-h+3}q5 3 10 0v${h*.45}q-5 3 -10 0z`,fill:'url(#lwall)',stroke:LINK,'stroke-width':.8},ship); });
-    lel('path',{d:'M2 -24l7 2-7 2',fill:LRED},ship); }
+    let tb=null; { const b=t.getBBox(); tb=[b.x,b.y,b.x+b.width,b.y+b.height]; if(lHit(tb,avoid)){ t.remove(); tb=null; } }
+    // a carrack under sail, cut as an engraver cut ships on the margins of charts: planked hull, castles fore and aft,
+    // square sails bellied by the wind and shaded on their lee side, a lateen on the mizzen, one red pennant
+    const ship=lel('g',{},ground), sk=lel('g',{filter:'url(#lengr)'},ship);
+    lel('path',{d:'M-30 8.5h14M-12 10h20M12 8.5h12',stroke:'#2f4a8a','stroke-width':.7,opacity:.5,fill:'none'},sk);
+    lb(sk,'M-23 -3Q-21 6 -10 7H13Q22 6 26 -4L21 -4.6H-17Z',{fill:'#b8a07c'}); lsh(sk,'M-20 2Q-15 6.4 -10 6.6H13Q19 6 22.6 2Z');
+    ld(sk,'M-21.6 0.6H24M-19.6 3.4H22',.45); ldk(sk,'M-12 -1.6h1.6v1.4h-1.6zM-7 -1.6h1.6v1.4h-1.6zM-2 -1.6h1.6v1.4h-1.6zM3 -1.6h1.6v1.4h-1.6zM8 -1.6h1.6v1.4h-1.6z');
+    lb(sk,'M-23 -3V-10.5H-12.5V-3.6Z',{fill:'#c7b28d'}); ld(sk,'M-23 -7.4H-12.5',.45); lb(sk,'M18 -4.4V-9H25.6L26 -4Z',{fill:'#c7b28d'});
+    ld(sk,'M25 -7L35 -12.5',.9);
+    ld(sk,'M-15 -10.5V-31M0 -4.6V-39M13 -9V-33',1);
+    const sail=(x,y0,h,w)=>{ lb(sk,`M${x-w} ${y0-h}Q${x} ${y0-h+2.4} ${x+w} ${y0-h}Q${x+w*1.25} ${y0-h/2} ${x+w} ${y0}Q${x} ${y0+2.2} ${x-w} ${y0}Q${x-w*.8} ${y0-h/2} ${x-w} ${y0-h}Z`,{fill:'#efe5cc','stroke-width':.8});
+      lsh(sk,`M${x+w*.35} ${y0-h+1.6}Q${x+w*1.15} ${y0-h/2} ${x+w*.92} ${y0-.3}Q${x+w*.6} ${y0+.9} ${x+w*.35} ${y0+1}Z`); ld(sk,`M${x-w} ${y0-h}H${x+w}`,.5); };
+    sail(0,-11,11,9); sail(0,-25,8.5,7); sail(13,-12,10,7); sail(13,-25,6.5,5);
+    lb(sk,'M-15 -13L-24 -12.5L-15 -29Z',{fill:'#efe5cc','stroke-width':.8}); ld(sk,'M-25 -12L-12 -31',.6);
+    lel('path',{d:'M0 -39l8 2.2-8 2.2z',fill:LRED},ship); ld(ship,'M-15 -31l-.1 -2.4M13 -33v-2.4',.7);
+    // it sails where the bay has room, clear of the key, the legend and the sea's own name
+    { let placed=false; const sc=s*1.12;
+      const seaEl=landSvg.querySelector('.lseafill'), clearOf=avoid.filter(r=>r[3]<Hd-1); // (the boxes that keep towns off the bay itself run down to the foot)
+      for(const dxp of [1300,1336,1264,1372,1228,1408,1196]){ const px=Q(dxp,0)[0]; let cyc=sb-7;
+        // the coast's height at this point of the bay, and the ship a little more than halfway down from it
+        for(let yy=Hd-160;yy<sb;yy+=1){ if(seaEl.isPointInFill(new DOMPoint(px,yy))){ cyc=Math.min(sb-7,yy+(sb-yy)*.62); break; } }
+        ship.setAttribute('transform',`translate(${px.toFixed(1)} ${cyc.toFixed(1)}) scale(${sc.toFixed(3)})`); const b=ship.getBBox(), q=[px+b.x*sc,cyc+b.y*sc,px+(b.x+b.width)*sc,cyc+(b.y+b.height)*sc];
+        if(!lHit(q,clearOf)&&!(tb&&lHit(q,[tb]))&&q[2]<Wd-4){ placed=true; avoid.push(q); break; } }
+      if(!placed) ship.remove(); } }
+
   // the ground itself, faint as the grain of the skin: stippled banks along every stream, a scatter of grass and dots over the open land,
   // and here and there a rubricator's three red dots
   { const tex=ground.insertBefore(lel('g',{class:'ltex'}),ground.firstChild), sea=landSvg.querySelector('.lseafill');
@@ -3245,9 +3556,9 @@ function layoutLand(noKey){
     for(let y=100;y<Hd-36;y+=step) for(let x=6;x<Wd-6;x+=step){ const jx=x+(rnd()-.5)*step, jy=y+(rnd()-.5)*step;
       if(wetAt(jx,jy,jy,7*s)) continue;
       if(wetAt(jx,jy,jy,17*s)){ if(rnd()<.6&&clear(jx,jy,2)) bank+=`M${f(jx)} ${f(jy)}h0`; continue; }
-      const r=rnd(); if(r>.24||!clear(jx,jy,5)) continue;
-      if(r<.005) reds+=`M${f(jx)} ${f(jy)}h0M${f(jx+2.6*s)} ${f(jy)}h0M${f(jx+1.3*s)} ${f(jy-2.2*s)}h0`;
-      else if(r<.09) tufts+=`M${f(jx)} ${f(jy)}l${f(-1.4*s)} ${f(-2.4*s)}M${f(jx)} ${f(jy)}l${f(.2*s)} ${f(-3*s)}M${f(jx)} ${f(jy)}l${f(1.5*s)} ${f(-2.2*s)}`;
+      const r=rnd(); if(r>.1||!clear(jx,jy,5)) continue;
+      if(r<0) reds+=`M${f(jx)} ${f(jy)}h0M${f(jx+2.6*s)} ${f(jy)}h0M${f(jx+1.3*s)} ${f(jy-2.2*s)}h0`;
+      else if(r<.025) tufts+=`M${f(jx)} ${f(jy)}l${f(-1.4*s)} ${f(-2.4*s)}M${f(jx)} ${f(jy)}l${f(.2*s)} ${f(-3*s)}M${f(jx)} ${f(jy)}l${f(1.5*s)} ${f(-2.2*s)}`;
       else dots+=`M${f(jx)} ${f(jy)}h0` + (rnd()<.4?`M${f(jx+2.2)} ${f(jy+1)}h0`:''); }
     lel('path',{d:bank,stroke:'#4f6584','stroke-width':1.2,'stroke-linecap':'round',opacity:.34,fill:'none'},tex);
     lel('path',{d:dots,stroke:LINK,'stroke-width':1.1,'stroke-linecap':'round',opacity:.24,fill:'none'},tex);
@@ -3263,14 +3574,14 @@ function layoutLand(noKey){
     r.el=lel('path',{class:'lroad',d},roads); });
   // the rule of centuries along the foot
   const RU=lel('g',{class:'lrule'},landSvg), ry=Hd-22, x30=X(y2u(30));
-  lel('line',{x1:x30,y1:ry,x2:Wd,y2:ry,stroke:LINK,'stroke-width':.9,opacity:.75},RU);
+  const x26=X(1); lel('line',{x1:x30,y1:ry,x2:x26,y2:ry,stroke:LINK,'stroke-width':.9,opacity:.75},RU);
   let last=-99;
   for(let yr=100;yr<=1900;yr+=100){ const x=X(y2u(yr)), major=yr%500===0;
     lel('line',{x1:x,y1:ry,x2:x,y2:ry-(major?9:5),stroke:LINK,'stroke-width':major?1.2:.8,opacity:.75},RU);
-    if(((major&&x-last>22)||x-last>36)&&x<Wd-104){ lel('text',{x,y:ry+17,'text-anchor':'middle',class:major?'lrn major':'lrn'},RU).textContent=String(yr); last=x; } }
+    if(((major&&x-last>22)||x-last>36)&&x<x26-104){ lel('text',{x,y:ry+17,'text-anchor':'middle',class:major?'lrn major':'lrn'},RU).textContent=String(yr); last=x; } }
   lel('text',{x:x30,y:ry+17,class:'lrn sc'},RU).textContent='A.D. 30';
-  lel('path',{d:`M${Wd-4} ${ry}l-5 -8h10z`,fill:LRED},RU);
-  lel('text',{x:Wd-6,y:ry+17,'text-anchor':'end',class:'lrn sc'},RU).textContent='A.D. MMXXVI';
+  lel('path',{d:`M${x26} ${ry}l-5 -8h10z`,fill:LRED},RU);
+  lel('text',{x:x26,y:ry+17,'text-anchor':'end',class:'lrn sc'},RU).textContent='A.D. MMXXVI';
   // the key
   if(!rkey.hidden&&!rkey.firstChild){
     rkey.innerHTML='<p class="rkey-h">The key to the river</p><ul>'+LKEY.map(([m,s])=>`<li><svg width="30" height="16" viewBox="-15 -8 30 16" aria-hidden="true">${{
@@ -3297,7 +3608,7 @@ const WATER=[['one','The undivided church',251,15,.12],['coe','Church of the Eas
 function drawWaterNames(S){
   const cy=(id,x)=>{ const u=xToU(x), r=chAt(CH[id],u2y(u)); return r?Yp(r[0]+mea(u)):null; };
   ctx.textAlign='center'; ctx.textBaseline='alphabetic';
-  for(const [id,name,sx,fs0,ls] of WATER){ const fs=fs0*Math.max(.9,Math.min(1.08,Wd/1440)), cx=sx*Wd/1440;
+  for(const [id,name,sx,fs0,ls] of WATER){ const fs=fs0*Math.max(.9,Math.min(1.08,Wd/1440)), cx=sx*Wd/1440*(1.012/(HOME_U1+.012)); /* placed against the river as it stood before it reached the sea */
     ctx.font=`italic ${fs}px "IM Fell Great Primer", "IM Fell English", Georgia, serif`;
     const chars=[...name], adv=chars.map(c=>ctx.measureText(c).width+ls*fs), total=adv.reduce((a,b)=>a+b,0)-ls*fs;
     // walk the centreline in small steps to measure its length around the name's place
