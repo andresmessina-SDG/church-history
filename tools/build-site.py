@@ -40,7 +40,15 @@ extra = f'''<link rel="canonical" href="{BASE}">
 <script type="application/ld+json">{{"@context":"https://schema.org","@type":"WebSite","name":"{title}","url":"{BASE}","description":"{desc}","inLanguage":"en"}}</script>
 '''
 head = head.replace("<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">", extra + "<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">", 1)
-noscript = '<noscript><p><a href="credits.html">Sources, credits and method</a></p></noscript>\n'
+# the river is drawn by script, so the page also carries a plain contents list of every era's own page (built by tools/build-pages.js):
+# hidden from sight but read by screen readers and search engines, and shown in full where scripts do not run
+slugs = re.findall(r"'([a-z-]+)'", re.search(r"const SLUG=\[(.*?)\]", frag).group(1))
+eras = re.findall(r"\{n:'([IVX]+)', name:'([^']+)', a:(\d+), b:(\d+)", frag)
+assert len(slugs) == len(eras) == 10, "eras or slugs not found"
+items = "".join(f'<li><a href="{s}/">{n}. {name}, {a}–{"today" if b == "2026" else b}</a></li>' for s, (n, name, a, b) in zip(slugs, eras))
+noscript = ('<nav class="contents sr" aria-label="Contents"><h2>The eras of the river</h2><ol>' + items +
+            '</ol><p><a href="credits.html">Sources, credits and method</a></p></nav>\n'
+            '<noscript><style>.contents{position:static;width:auto;height:auto;clip:auto;white-space:normal;margin:16px}</style></noscript>\n')
 
 page = ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n'
