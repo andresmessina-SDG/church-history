@@ -4,8 +4,8 @@
 <pilot-dir> holds the artifact's files. Its index.html is a page fragment that
 begins with a wrapper line (ending in <body>) followed by <title>...; this
 swaps the wrapper for a full head and copies every other file beside it.
-Last, it runs tools/localize-fonts.py on <out-dir>, so the site serves its own
-fonts instead of asking Google for them.
+Last, it runs tools/localize.py on <out-dir>, so the site serves its own
+fonts and images instead of asking other sites for them.
 """
 import re, shutil, subprocess, sys
 from pathlib import Path
@@ -64,5 +64,5 @@ for f in src.rglob("*"):
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(f, dest)
 
-# The artifact can only load fonts from Google; the deployed site serves its own.
-subprocess.run([sys.executable, str(Path(__file__).with_name("localize-fonts.py")), str(out)], check=True)
+# The artifact loads its fonts from Google; the deployed site serves its own.
+subprocess.run([sys.executable, str(Path(__file__).with_name("localize.py")), str(out)], check=True)

@@ -168,4 +168,4 @@ ${urls.map(u => `  <url><loc>${BASE}${u}</loc><lastmod>${today}</lastmod></url>`
 `);
 console.log(`wrote ${written.length} pages (${ERAS.length} eras, ${written.length - ERAS.length} chapters) and sitemap.xml with ${urls.length} addresses`);
 // The pages above name Google Fonts, as the river does; serve those fonts from the site instead.
-require('child_process').execFileSync('python3', [path.join(__dirname, 'localize-fonts.py'), ROOT], { stdio: 'inherit' });
+require('child_process').execFileSync('python3', [path.join(__dirname, 'localize.py'), ROOT], { stdio: 'inherit' });
